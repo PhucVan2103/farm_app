@@ -16,10 +16,14 @@ const messaging = firebase.messaging();
 // Xử lý khi nhận được thông báo lúc ứng dụng đang chạy ngầm hoặc đã đóng
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Nhận được tin báo ngầm: ', payload);
-  const notificationTitle = payload.notification.title;
-  const notificationOptions = {
-    body: payload.notification.body,
-    icon: '/icon-192x192.png' // Icon ứng dụng của bạn
-  };
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  
+  if (payload.notification) {
+    const notificationTitle = payload.notification.title;
+    const notificationOptions = {
+      body: payload.notification.body,
+      icon: '/icon-192x192.png' // Icon ứng dụng của bạn
+    };
+    // Bắt buộc phải có 'return' để trình duyệt không tắt Service Worker trước khi popup hiện lên
+    return self.registration.showNotification(notificationTitle, notificationOptions);
+  }
 });
