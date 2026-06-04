@@ -16,6 +16,15 @@ const messaging = firebase.messaging();
 // Xử lý khi nhận được thông báo lúc ứng dụng đang chạy ngầm hoặc đã đóng
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Nhận được tin báo ngầm: ', payload);
-  // CHÚ Ý: KHÔNG gọi showNotification thủ công ở đây nữa!
-  // Firebase SDK sẽ tự động hiển thị thông báo để tránh xung đột và lỗi trên iOS.
+  
+  // [BẢN VÁ CHO iOS] Gửi tin nhắn tới tất cả các cửa sổ đang mở để hiển thị Toast
+  // Vì trên iOS, Firebase đôi khi nhầm lẫn app đang mở thành đang chạy ngầm.
+  self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clients) => {
+    clients.forEach((client) => {
+      client.postMessage({
+        type: 'FOREGROUND_PUSH',
+        payload: payload
+      });
+    });
+  });
 });
