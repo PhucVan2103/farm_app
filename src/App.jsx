@@ -365,48 +365,56 @@ function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    // Lắng nghe hiển thị thông báo khi bạn đang MỞ app (Foreground)
-    if (!messaging) return;
-    const unsubscribe = onMessage(messaging, (payload) => {
-      toast.custom(
-        (t) => (
-          <div
-            className={`max-w-sm w-full bg-slate-900 shadow-2xl rounded-2xl pointer-events-auto flex border border-green-500/30 ${
-              t.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
-            } transition-all duration-300`}
-          >
-            <div className="flex-1 w-0 p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 pt-0.5">
-                  <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center text-lg">
-                    🔔
-                  </div>
-                </div>
-                <div className="ml-3 flex-1">
-                  <p className="text-[13px] font-bold text-green-400">
-                    {payload.notification?.title || 'Thông báo mới'}
-                  </p>
-                  <p className="mt-1 text-[11px] text-white/80 leading-relaxed">
-                    {payload.notification?.body || ''}
-                  </p>
-                </div>
+  // Hàm hiển thị Popup Toast thông báo đẹp mắt
+  const showCustomToast = (payload) => {
+    toast.custom(
+      (t) => (
+        <div
+          className={`max-w-sm w-full bg-slate-900 shadow-2xl rounded-2xl pointer-events-auto flex border border-green-500/30 ${
+            t.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+          } transition-all duration-300 z-[9999]`}
+        >
+          <div className="flex-1 w-0 p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 pt-0.5">
+                <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center text-lg">🔔</div>
+              </div>
+              <div className="ml-3 flex-1">
+                <p className="text-[13px] font-bold text-green-400">{payload.notification?.title || 'Thông báo mới'}</p>
+                <p className="mt-1 text-[11px] text-white/80 leading-relaxed">{payload.notification?.body || ''}</p>
               </div>
             </div>
-            <div className="flex border-l border-white/10">
-              <button
-                onClick={() => toast.dismiss(t.id)}
-                className="w-full border border-transparent rounded-none rounded-r-2xl px-4 flex items-center justify-center text-[11px] font-bold text-white/40 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                Đóng
-              </button>
-            </div>
           </div>
-        ),
-        { duration: 5000, position: 'top-center' }
-      );
-    });
-    return () => unsubscribe();
+          <div className="flex border-l border-white/10">
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="w-full h-full border border-transparent rounded-none rounded-r-2xl px-4 flex items-center justify-center text-[11px] font-bold text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      ),
+      { duration: 5000, position: 'top-center' }
+    );
+  };
+
+  useEffect(() => {
+    if (!messaging) return;
+    
+    // 1. Lắng nghe chuẩn của Firebase (Hoạt động tốt trên PC/Android)
+    const unsubscribe = onMessage(messaging, (payload) => showCustomToast(payload));
+
+    // 2. Lắng nghe tin nhắn từ Service Worker (Bản vá lỗi không hiện Toast trên iOS)
+    const handleServiceWorkerMessage = (event) => {
+      if (event.data && event.data.type === 'FOREGROUND_PUSH') showCustomToast(event.data.payload);
+    };
+    if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+
+    return () => {
+      unsubscribe();
+      if ('serviceWorker' in navigator) navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -2439,7 +2447,7 @@ function Login() {
   };
 
   return (
-    <div className="bg-emerald-50 min-h-screen font-sans flex items-center justify-center p-6 bg-[url('https://images.unsplash.com/photo-1524350876685-27405933260c?q=80&w=600&auto=format&fit=crop')] bg-cover bg-center">
+    <div className="bg-emerald-50 min-h-[100dvh] font-sans flex items-center justify-center p-6 bg-[url('https://images.unsplash.com/photo-1524350876685-27405933260c?q=80&w=600&auto=format&fit=crop')] bg-cover bg-center">
       <div className="w-full max-w-[380px] bg-white/80 backdrop-blur-xl rounded-[32px] p-8 shadow-2xl flex flex-col items-center border border-white/40 animate-fadeIn">
         <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center mb-5 shadow-lg border-4 border-white">
           <Leaf className="w-10 h-10 text-white" />
