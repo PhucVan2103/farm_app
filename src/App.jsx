@@ -348,17 +348,17 @@ function Dashboard() {
           console.log('FCM Token của thiết bị:', token);
           try {
             await navigator.clipboard.writeText(token);
-            alert('Đã bật thông báo đẩy!\n\nMã Token đã được COPY vào bộ nhớ tạm. Hãy gửi mã này qua máy tính để test thử trên Firebase Console nhé!');
+            toast.success('Đã bật thông báo! Token đã được copy vào bộ nhớ đệm.', { duration: 4000 });
           } catch (err) {
-            alert(`Đã bật thông báo!\n\nMã Token của bạn:\n${token}`);
+            toast.success('Đã bật thông báo đẩy thành công!');
           }
         }
       } else {
-        alert('Bạn đã từ chối quyền gửi thông báo.');
+        toast.error('Bạn đã từ chối quyền gửi thông báo.');
       }
     } catch (error) {
       console.error('Lỗi khi xin quyền thông báo:', error);
-      alert('Có lỗi xảy ra khi xin quyền thông báo: ' + error.message);
+      toast.error('Lỗi xin quyền: ' + error.message);
     }
   };
 
@@ -366,7 +366,42 @@ function Dashboard() {
     // Lắng nghe hiển thị thông báo khi bạn đang MỞ app (Foreground)
     if (!messaging) return;
     const unsubscribe = onMessage(messaging, (payload) => {
-      alert(`🔔 Thông báo mới: ${payload.notification.title}\n${payload.notification.body}`);
+      toast.custom(
+        (t) => (
+          <div
+            className={`max-w-sm w-full bg-slate-900 shadow-2xl rounded-2xl pointer-events-auto flex border border-green-500/30 ${
+              t.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
+            } transition-all duration-300`}
+          >
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center text-lg">
+                    🔔
+                  </div>
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-[13px] font-bold text-green-400">
+                    {payload.notification?.title || 'Thông báo mới'}
+                  </p>
+                  <p className="mt-1 text-[11px] text-white/80 leading-relaxed">
+                    {payload.notification?.body || ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex border-l border-white/10">
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="w-full border border-transparent rounded-none rounded-r-2xl px-4 flex items-center justify-center text-[11px] font-bold text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        ),
+        { duration: 5000, position: 'top-center' }
+      );
     });
     return () => unsubscribe();
   }, []);
