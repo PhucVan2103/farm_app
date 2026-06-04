@@ -9,6 +9,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      workbox: {
+        importScripts: ['firebase-messaging-sw.js']
+      },
       manifest: {
         name: 'Nông Trại App',
         short_name: 'FarmApp',

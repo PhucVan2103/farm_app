@@ -285,6 +285,19 @@ function Dashboard() {
   }, [customAvatar]);
 
   useEffect(() => {
+    // Tự động dọn dẹp các Service Worker cũ độc lập có thể gây hiển thị 2 thông báo
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (let reg of registrations) {
+          if (reg.active && reg.active.scriptURL && reg.active.scriptURL.endsWith('/firebase-messaging-sw.js')) {
+            reg.unregister();
+          }
+        }
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('farmAppUserName', userName);
   }, [userName]);
 
@@ -323,11 +336,8 @@ function Dashboard() {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        // Chủ động đăng ký Service Worker của Firebase để tránh xung đột với Vite PWA
-        let swRegistration = null;
-        if ('serviceWorker' in navigator) {
-          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-        }
+        // Lấy Service Worker mặc định của ứng dụng (đã được cấu hình gộp chung với Firebase)
+        const swRegistration = await navigator.serviceWorker.ready;
 
         const token = await getToken(messaging, { 
           vapidKey: 'BOigFAMP3C4-1MfaO1lZB-OZiEx9LlyRQDPzj6_2O6VfMFqwA2282SDBQtHiFqXOWVQRGVsHqfpeRAzKt6kYMgY',

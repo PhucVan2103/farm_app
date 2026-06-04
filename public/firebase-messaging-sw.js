@@ -11,19 +11,21 @@ firebase.initializeApp({
   appId: "1:314343662236:web:1d0eb2811400a59c054359"
 });
 
+// [HACK FIX] NGĂN HIỂN THỊ 2 THÔNG BÁO TRÊN iOS
+// iOS 16.4+ tự động hiển thị thông báo gốc. Ta cần chặn Firebase cố tình gọi thêm 1 lần nữa.
+const isIos = /iPad|iPhone|iPod/i.test(navigator.userAgent || '');
+if (isIos) {
+  self.registration.showNotification = () => {
+    console.log('Đã chặn Firebase tự hiển thị thông báo thứ 2 trên iOS');
+    return Promise.resolve();
+  };
+}
+
 const messaging = firebase.messaging();
 
 // Xử lý khi nhận được thông báo lúc ứng dụng đang chạy ngầm hoặc đã đóng
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Nhận được tin báo ngầm: ', payload);
-  
-  if (payload.notification) {
-    const notificationTitle = payload.notification.title;
-    const notificationOptions = {
-      body: payload.notification.body,
-      icon: '/icon-192x192.png' // Icon ứng dụng của bạn
-    };
-    // Bắt buộc phải có 'return' để trình duyệt không tắt Service Worker trước khi popup hiện lên
-    return self.registration.showNotification(notificationTitle, notificationOptions);
-  }
+  // CHÚ Ý: KHÔNG gọi showNotification thủ công ở đây nữa!
+  // Firebase SDK sẽ tự động hiển thị thông báo để tránh xung đột và lỗi trên iOS.
 });
