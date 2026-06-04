@@ -45,6 +45,8 @@ import {
 } from 'lucide-react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
+import { messaging } from './firebase';
+import { getToken, onMessage } from 'firebase/messaging';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -307,6 +309,34 @@ function Dashboard() {
       reader.readAsDataURL(file);
     }
   };
+
+  const requestNotificationPermission = async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        // THAY THẾ BẰNG MÃ VAPID KEY BẠN LẤY Ở BƯỚC 1 VÀO ĐÂY
+        const token = await getToken(messaging, { vapidKey: 'BOigFAMP3C4-1MfaO1lZB-OZiEx9LlyRQDPzj6_2O6VfMFqwA2282SDBQtHiFqXOWVQRGVsHqfpeRAzKt6kYMgY' });
+        if (token) {
+          console.log('FCM Token của thiết bị:', token);
+          alert('Đã bật thông báo đẩy thành công!');
+          // Thực tế: Bạn cần viết lệnh gửi `token` này lên Database (Firestore) để sau này Firebase biết gửi thông báo đến máy nào.
+        }
+      } else {
+        alert('Bạn đã từ chối quyền gửi thông báo.');
+      }
+    } catch (error) {
+      console.error('Lỗi khi xin quyền thông báo:', error);
+    }
+  };
+
+  useEffect(() => {
+    // Lắng nghe hiển thị thông báo khi bạn đang MỞ app (Foreground)
+    if (!messaging) return;
+    const unsubscribe = onMessage(messaging, (payload) => {
+      alert(`🔔 Thông báo mới: ${payload.notification.title}\n${payload.notification.body}`);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleLogout = () => {
     const confirmLogout = window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?");
@@ -940,6 +970,16 @@ function Dashboard() {
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
               />
+            </div>
+
+            {/* Nút Bật thông báo đẩy */}
+            <div className="pt-4 mt-2 border-t border-white/10">
+              <button 
+                onClick={requestNotificationPermission}
+                className="w-full flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 font-bold py-3 rounded-xl transition-colors text-[11px]"
+              >
+                <Bell className="w-4 h-4" /> Bật thông báo đẩy (Push)
+              </button>
             </div>
             
             {/* Nút Đăng xuất */}
