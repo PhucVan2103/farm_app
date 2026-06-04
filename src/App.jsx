@@ -41,14 +41,10 @@ import {
   Scale,
   Package,
   LogOut,
-  Send,
-  Pencil,
-  Trash2
+  Send
 } from 'lucide-react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
-import toast, { Toaster } from 'react-hot-toast';
-import YieldTab from './YieldTab';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -238,8 +234,6 @@ function Dashboard() {
 
   // State cho Drag & Drop
   const [draggedTaskId, setDraggedTaskId] = useState(null);
-  const [editingTaskId, setEditingTaskId] = useState(null);
-  const [editingFinanceId, setEditingFinanceId] = useState(null);
 
   // State cho Giao diện & Ảnh nền
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('farmAppTheme') || 'light');
@@ -373,7 +367,7 @@ function Dashboard() {
     if (newTask.hasLabor && newTask.laborCount && newTask.laborPrice) {
       laborTotalCost = parseFloat(newTask.laborCount) * parseFloat(newTask.laborPrice);
     }
-
+      
     if (editingTaskId) {
       setTasks(tasks.map(t => t.id === editingTaskId ? {
         ...t,
@@ -446,37 +440,49 @@ function Dashboard() {
     setShowFinanceModal(true);
   };
 
-  const handleDeleteFinance = (id) => {
+  const handleDeleteFinance = async (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa giao dịch này?")) {
-      setFinances(finances.filter(f => f.id !== id));
+      await deleteDoc(doc(db, "finances", id));
       toast.success("Đã xóa giao dịch!");
     }
   };
 
-  const handleAddFinance = (e) => {
+  const handleAddFinance = async (e) => {
     e.preventDefault();
     if (!newFinance.amount || !newFinance.date) return;
     
     if (editingFinanceId) {
-      setFinances(finances.map(f => f.id === editingFinanceId ? { ...f, ...newFinance, amount: parseFloat(newFinance.amount) } : f));
+      await updateDoc(doc(db, "finances", editingFinanceId), {
+        ...newFinance, amount: parseFloat(newFinance.amount)
+      });
       toast.success('Đã cập nhật giao dịch!');
     } else {
-      setFinances([{ ...newFinance, id: Date.now(), amount: parseFloat(newFinance.amount) }, ...finances]);
+      await addDoc(collection(db, "finances"), {
+        ...newFinance, amount: parseFloat(newFinance.amount), createdAt: Date.now()
+      });
       toast.success('Đã lưu giao dịch!');
     }
     closeFinanceModal();
   };
 
-  const handleAddYield = (e) => {
+  const handleAddYield = async (e) => {
     e.preventDefault();
     if (!newYield.weight || !newYield.date || !newYield.price) return;
-    setYields([{ ...newYield, id: Date.now(), weight: parseFloat(newYield.weight), price: parseFloat(newYield.price) }, ...yields]);
+    await addDoc(collection(db, "yields"), {
+      ...newYield, weight: parseFloat(newYield.weight), price: parseFloat(newYield.price), createdAt: Date.now()
+    });
     setShowYieldModal(false);
+    toast.success('Đã lưu mẻ thu hoạch!');
     setNewYield({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
   };
 
-  const toggleTaskStatus = (taskId) => {
-    setTasks(tasks.map(t => t.id === taskId ? { ...t, status: t.status === 'pending' ? 'completed' : 'pending' } : t));
+  const toggleTaskStatus = async (taskId) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      const newStatus = task.status === 'pending' ? 'completed' : 'pending';
+      await updateDoc(doc(db, "tasks", taskId), { status: newStatus });
+      if (newStatus === 'completed') toast.success('Đã hoàn thành công việc!');
+    }
   };
 
   // Các hàm xử lý Kéo Thả (Drag & Drop)
@@ -910,7 +916,7 @@ function Dashboard() {
               <input type="file" ref={fileInputRef} onChange={handleBgChange} accept="image/*" className="hidden" />
               <div className="flex gap-2">
                 <button onClick={() => fileInputRef.current.click()} className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 rounded-xl transition-colors text-[10px]">Tải lên</button>
-                {customBg && <button onClick={() => setCustomBg(null)} className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold py-2.5 rounded-xl transition-colors text-[10px]">Xóa nền</button>}
+                {customBg && <button onClick={() => { setCustomBg(null); toast.success('Đã xóa ảnh nền'); }} className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold py-2.5 rounded-xl transition-colors text-[10px]">Xóa nền</button>}
               </div>
             </div>
             
@@ -920,7 +926,7 @@ function Dashboard() {
               <input type="file" ref={avatarInputRef} onChange={handleAvatarChange} accept="image/*" className="hidden" />
               <div className="flex gap-2">
                 <button onClick={() => avatarInputRef.current.click()} className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 rounded-xl transition-colors text-[10px]">Tải lên</button>
-                {customAvatar && <button onClick={() => setCustomAvatar(null)} className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold py-2.5 rounded-xl transition-colors text-[10px]">Xóa ảnh</button>}
+                {customAvatar && <button onClick={() => { setCustomAvatar(null); toast.success('Đã xóa ảnh đại diện'); }} className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold py-2.5 rounded-xl transition-colors text-[10px]">Xóa ảnh</button>}
               </div>
             </div>
             
@@ -1607,7 +1613,7 @@ function Dashboard() {
             <BarChart3 className="w-4 h-4" />
           </button>
           <button 
-            onClick={openAddFinanceModal}
+            onClick={() => setShowFinanceModal(true)}
             className="bg-white text-green-900 rounded-full shadow-lg hover:bg-green-50 transition-colors flex items-center gap-1.5 px-3 py-2"
           >
             <Plus className="w-3.5 h-3.5" /> <span className="text-[10px] font-bold">Giao dịch</span>
@@ -1833,20 +1839,7 @@ function Dashboard() {
             {activeTab === 'knowledge' && renderKnowledge()}
             {activeTab === 'tasks' && renderTasks()}
             {activeTab === 'finance' && renderFinance()}
-            {activeTab === 'yield' && (
-              <YieldTab 
-                theme={theme}
-                selectedYieldYear={selectedYieldYear}
-                setSelectedYieldYear={setSelectedYieldYear}
-                availableYieldYears={availableYieldYears}
-                setShowYieldStatsModal={setShowYieldStatsModal}
-                setShowYieldModal={setShowYieldModal}
-                totalYield={totalYield}
-                estimatedRevenue={estimatedRevenue}
-                formatCurrency={formatCurrency}
-                filteredYields={filteredYields}
-              />
-            )}
+            {activeTab === 'yield' && renderYield()}
         </div>
 
         {/* Floating Bottom Navigation Bar (Glassmorphism Pill) */}
@@ -1898,8 +1891,8 @@ function Dashboard() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
             <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[95%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-green-300">{editingTaskId ? 'Cập nhật công việc' : 'Thêm công việc mới'}</h3>
-                <button onClick={closeTaskModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-green-300">Thêm công việc mới</h3>
+                <button onClick={() => setShowTaskModal(false)} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
                   <X className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -1999,7 +1992,7 @@ function Dashboard() {
                 </div>
 
                 <button type="submit" className="w-full bg-white text-green-900 font-bold py-3 rounded-xl mt-3 shadow-lg hover:bg-green-50 transition-colors text-[11px]">
-                  {editingTaskId ? 'Cập nhật' : 'Lưu công việc'}
+                  Lưu công việc
                 </button>
               </form>
             </div>
@@ -2011,8 +2004,8 @@ function Dashboard() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
             <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[90%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-5">
-                <h3 className="text-sm font-bold">{editingFinanceId ? 'Cập nhật giao dịch' : 'Giao dịch mới'}</h3>
-                <button onClick={closeFinanceModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                <h3 className="text-sm font-bold">Giao dịch mới</h3>
+                <button onClick={() => setShowFinanceModal(false)} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
                   <X className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -2083,7 +2076,7 @@ function Dashboard() {
                 </div>
 
                 <button type="submit" className={`w-full font-bold py-3.5 rounded-xl mt-6 shadow-lg transition-colors text-[11px] ${newFinance.type === 'thu' ? 'bg-white text-green-900 hover:bg-green-50' : 'bg-red-500 text-[#fff] hover:bg-red-600'}`}>
-                  {editingFinanceId ? 'Cập nhật' : 'Lưu giao dịch'}
+                  Lưu giao dịch
                 </button>
               </form>
             </div>
@@ -2315,7 +2308,6 @@ function Login() {
     // Logic kiểm tra tài khoản/mật khẩu giả lập
     if (username === 'admin' && password === '123456') {
       localStorage.setItem('isAuthenticated', 'true');
-      toast.success('Đăng nhập thành công!');
       navigate('/');
     } else {
       setError('Tên đăng nhập hoặc mật khẩu không đúng! (Gợi ý: admin / 123456)');
@@ -2358,19 +2350,6 @@ const ProtectedRoute = ({ children }) => {
 export default function CoffeeFarmApp() {
   return (
     <BrowserRouter>
-      <Toaster 
-        position="top-center" 
-        toastOptions={{
-          style: {
-            background: '#1e293b',
-            color: '#fff',
-            fontSize: '11px',
-            borderRadius: '100px',
-            padding: '8px 16px',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }
-        }} 
-      />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
