@@ -323,18 +323,32 @@ function Dashboard() {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        // THAY THẾ BẰNG MÃ VAPID KEY BẠN LẤY Ở BƯỚC 1 VÀO ĐÂY
-        const token = await getToken(messaging, { vapidKey: 'BOigFAMP3C4-1MfaO1lZB-OZiEx9LlyRQDPzj6_2O6VfMFqwA2282SDBQtHiFqXOWVQRGVsHqfpeRAzKt6kYMgY' });
+        // Chủ động đăng ký Service Worker của Firebase để tránh xung đột với Vite PWA
+        let swRegistration = null;
+        if ('serviceWorker' in navigator) {
+          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        }
+
+        const token = await getToken(messaging, { 
+          vapidKey: 'BOigFAMP3C4-1MfaO1lZB-OZiEx9LlyRQDPzj6_2O6VfMFqwA2282SDBQtHiFqXOWVQRGVsHqfpeRAzKt6kYMgY',
+          serviceWorkerRegistration: swRegistration
+        });
+
         if (token) {
           console.log('FCM Token của thiết bị:', token);
-          alert('Đã bật thông báo đẩy thành công!');
-          // Thực tế: Bạn cần viết lệnh gửi `token` này lên Database (Firestore) để sau này Firebase biết gửi thông báo đến máy nào.
+          try {
+            await navigator.clipboard.writeText(token);
+            alert('Đã bật thông báo đẩy!\n\nMã Token đã được COPY vào bộ nhớ tạm. Hãy gửi mã này qua máy tính để test thử trên Firebase Console nhé!');
+          } catch (err) {
+            alert(`Đã bật thông báo!\n\nMã Token của bạn:\n${token}`);
+          }
         }
       } else {
         alert('Bạn đã từ chối quyền gửi thông báo.');
       }
     } catch (error) {
       console.error('Lỗi khi xin quyền thông báo:', error);
+      alert('Có lỗi xảy ra khi xin quyền thông báo: ' + error.message);
     }
   };
 
