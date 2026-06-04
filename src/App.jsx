@@ -311,6 +311,15 @@ function Dashboard() {
   };
 
   const requestNotificationPermission = async () => {
+    // Kiểm tra đặc thù cho iOS (Apple bắt buộc phải Add to Home Screen mới cho nhận Push)
+    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+    const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
+
+    if (isIos && !isInStandaloneMode) {
+      alert("📱 CHÚ Ý DÀNH CHO IPHONE/IPAD:\n\nApple yêu cầu bạn phải cài đặt ứng dụng trước khi bật thông báo.\n\nVui lòng nhấn nút [Chia sẻ] ở thanh dưới cùng của Safari -> Chọn [Thêm vào MH chính] (Add to Home Screen).\n\nSau đó hãy mở Nông Trại App từ màn hình chính điện thoại và thử lại nhé!");
+      return;
+    }
+
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
