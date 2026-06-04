@@ -1959,14 +1959,14 @@ function Dashboard() {
 
   return (
     <div 
-      className={`${themeMode === 'light' ? 'bg-gray-100' : 'bg-[#0f172a]'} min-h-screen font-sans flex items-center justify-center p-0 md:p-6 bg-cover bg-center transition-all duration-500`}
+      className={`${themeMode === 'light' ? 'bg-gray-100' : 'bg-[#0f172a]'} min-h-[100dvh] font-sans flex items-center justify-center p-0 md:p-6 bg-cover bg-center transition-all duration-500`}
       style={backgroundUrl ? { backgroundImage: `url(${backgroundUrl})` } : {}}
     >
       {/* Mobile Frame Wrapper */}
-      <div className={`w-full max-w-[380px] h-screen md:h-[800px] md:rounded-[40px] md:border-[8px] md:border-black/50 ${theme.appWrapper} backdrop-blur-3xl relative shadow-2xl flex flex-col overflow-hidden`}>
+      <div className={`w-full h-[100dvh] md:max-w-[430px] md:h-[800px] md:rounded-[40px] md:border-[8px] md:border-black/50 ${theme.appWrapper} backdrop-blur-3xl relative shadow-2xl flex flex-col overflow-hidden`}>
         
         {/* Dynamic App Shell Content Area */}
-        <div className="flex-1 absolute inset-0 overflow-y-auto scrollbar-none pb-28">
+        <div className="flex-1 absolute inset-0 overflow-y-auto scrollbar-none pb-32" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             {activeTab === 'home' && renderHome()}
             {activeTab === 'knowledge' && renderKnowledge()}
             {activeTab === 'tasks' && renderTasks()}
@@ -1975,7 +1975,7 @@ function Dashboard() {
         </div>
 
         {/* Floating Bottom Navigation Bar (Glassmorphism Pill) */}
-        <div className="absolute bottom-6 left-4 right-4 z-20">
+        <div className="absolute left-4 right-4 z-20" style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
           <div className={`${theme.bottomNavGlass} flex justify-around items-center p-2`}>
             <button 
               onClick={() => setActiveTab('home')}
