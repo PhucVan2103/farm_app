@@ -244,6 +244,7 @@ function Dashboard() {
   const [customAvatar, setCustomAvatar] = useState(() => localStorage.getItem('farmAppCustomAvatar') || null);
   const avatarInputRef = useRef(null);
   const [userName, setUserName] = useState(() => localStorage.getItem('farmAppUserName') || 'Chủ vườn Ân');
+  const [fcmToken, setFcmToken] = useState(() => localStorage.getItem('farmAppFcmToken') || '');
 
   // Form states
   const [newTask, setNewTask] = useState({ 
@@ -346,6 +347,8 @@ function Dashboard() {
 
         if (token) {
           console.log('FCM Token của thiết bị:', token);
+          setFcmToken(token);
+          localStorage.setItem('farmAppFcmToken', token);
           try {
             await navigator.clipboard.writeText(token);
             toast.success('Đã bật thông báo! Token đã được copy vào bộ nhớ đệm.', { duration: 4000 });
@@ -1042,12 +1045,25 @@ function Dashboard() {
 
             {/* Nút Bật thông báo đẩy */}
             <div className="pt-4 mt-2 border-t border-white/10">
-              <button 
-                onClick={requestNotificationPermission}
-                className="w-full flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 font-bold py-3 rounded-xl transition-colors text-[11px]"
-              >
-                <Bell className="w-4 h-4" /> Bật thông báo đẩy (Push)
-              </button>
+              {fcmToken ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-green-500 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Đã bật thông báo đẩy</span>
+                    <button onClick={requestNotificationPermission} className="text-[9px] text-blue-400 hover:text-blue-300 underline">Cấp lại Token</button>
+                  </div>
+                  <div className="flex gap-2">
+                    <input type="text" readOnly value={fcmToken} className={`flex-1 rounded-lg p-2 ${theme.inputGlass} outline-none text-[8px] text-white/50 truncate`} />
+                    <button onClick={() => { navigator.clipboard.writeText(fcmToken); toast.success('Đã copy Token!'); }} className="bg-white/10 hover:bg-white/20 text-white rounded-lg px-3 text-[10px] font-bold transition-colors">Copy</button>
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={requestNotificationPermission}
+                  className="w-full flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 font-bold py-3 rounded-xl transition-colors text-[11px]"
+                >
+                  <Bell className="w-4 h-4" /> Bật thông báo đẩy (Push)
+                </button>
+              )}
             </div>
             
             {/* Nút Đăng xuất */}
