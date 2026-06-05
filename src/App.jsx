@@ -2061,8 +2061,8 @@ function Dashboard() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
             <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[95%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-green-300">Thêm công việc mới</h3>
-                <button onClick={() => setShowTaskModal(false)} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-green-300">{editingTaskId ? 'Cập nhật công việc' : 'Thêm công việc mới'}</h3>
+                <button onClick={closeTaskModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
                   <X className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -2162,7 +2162,7 @@ function Dashboard() {
                 </div>
 
                 <button type="submit" className="w-full bg-white text-green-900 font-bold py-3 rounded-xl mt-3 shadow-lg hover:bg-green-50 transition-colors text-[11px]">
-                  Lưu công việc
+                  {editingTaskId ? 'Cập nhật' : 'Lưu công việc'}
                 </button>
               </form>
             </div>
@@ -2174,8 +2174,8 @@ function Dashboard() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
             <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[90%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-5">
-                <h3 className="text-sm font-bold">Giao dịch mới</h3>
-                <button onClick={() => setShowFinanceModal(false)} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                <h3 className="text-sm font-bold">{editingFinanceId ? 'Cập nhật giao dịch' : 'Giao dịch mới'}</h3>
+                <button onClick={closeFinanceModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
                   <X className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -2246,7 +2246,7 @@ function Dashboard() {
                 </div>
 
                 <button type="submit" className={`w-full font-bold py-3.5 rounded-xl mt-6 shadow-lg transition-colors text-[11px] ${newFinance.type === 'thu' ? 'bg-white text-green-900 hover:bg-green-50' : 'bg-red-500 text-[#fff] hover:bg-red-600'}`}>
-                  Lưu giao dịch
+                  {editingFinanceId ? 'Cập nhật' : 'Lưu giao dịch'}
                 </button>
               </form>
             </div>
@@ -2394,8 +2394,8 @@ function Dashboard() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
             <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[90%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-5">
-                <h3 className="text-sm font-bold text-orange-300">Thêm mẻ thu hoạch</h3>
-                <button onClick={() => setShowYieldModal(false)} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                <h3 className="text-sm font-bold text-orange-300">{editingYieldId ? 'Cập nhật mẻ thu' : 'Thêm mẻ thu hoạch'}</h3>
+                <button onClick={closeYieldModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
                   <X className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -2455,7 +2455,7 @@ function Dashboard() {
                   />
                 </div>
                 <button type="submit" className="w-full bg-orange-400 text-orange-950 font-bold py-3.5 rounded-xl mt-6 shadow-lg hover:bg-orange-300 transition-colors text-[11px]">
-                  Lưu sản lượng
+                  {editingYieldId ? 'Cập nhật sản lượng' : 'Lưu sản lượng'}
                 </button>
               </form>
             </div>

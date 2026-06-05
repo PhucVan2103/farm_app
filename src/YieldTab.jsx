@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scale, BarChart3, Plus, Wallet, Package } from 'lucide-react';
+import { Scale, BarChart3, Plus, Wallet, Package, Pencil, Trash2 } from 'lucide-react';
 
 export default function YieldTab({
   theme,
@@ -7,7 +7,9 @@ export default function YieldTab({
   setSelectedYieldYear,
   availableYieldYears,
   setShowYieldStatsModal,
-  setShowYieldModal,
+  openAddYieldModal,
+  openEditYieldModal,
+  handleDeleteYield,
   totalYield,
   estimatedRevenue,
   formatCurrency,
@@ -38,7 +40,7 @@ export default function YieldTab({
             <BarChart3 className="w-4 h-4" />
           </button>
           <button 
-            onClick={() => setShowYieldModal(true)}
+            onClick={openAddYieldModal}
             className="bg-white text-orange-900 rounded-full shadow-lg hover:bg-orange-50 transition-colors flex items-center gap-1.5 px-3 py-2"
           >
             <Plus className="w-3.5 h-3.5" /> <span className="text-[10px] font-bold">Thêm mẻ thu</span>
@@ -90,9 +92,14 @@ export default function YieldTab({
                     <div className={`text-[9px] text-white/60`}>{item.date} • {item.type} ({item.price?.toLocaleString('vi-VN')}đ/kg)</div>
                   </div>
                 </div>
-                <div className="flex flex-col items-end whitespace-nowrap ml-2 flex-shrink-0">
-                  <span className="font-bold text-[11px] text-orange-300">+{item.weight.toLocaleString('vi-VN')} kg</span>
-                  <span className="text-[9px] text-yellow-400/80 font-medium">{formatCurrency(item.weight * (item.price || 0))}</span>
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <div className="flex flex-col items-end whitespace-nowrap ml-2 mb-1">
+                    <span className="font-bold text-[11px] text-orange-300">+{item.weight.toLocaleString('vi-VN')} kg</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => openEditYieldModal(item)} className="text-white/40 hover:text-blue-400 transition-colors"><Pencil className="w-3 h-3" /></button>
+                    <button onClick={() => handleDeleteYield(item.id)} className="text-white/40 hover:text-red-400 transition-colors"><Trash2 className="w-3 h-3" /></button>
+                  </div>
                 </div>
               </div>
             ))
