@@ -52,7 +52,7 @@ import { getToken, onMessage } from 'firebase/messaging';
 import toast, { Toaster } from 'react-hot-toast';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./firebase";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
 import YieldTab from './YieldTab';
 import HomeTab from './HomeTab';
 import KnowledgeTab from './KnowledgeTab';
@@ -1951,7 +1951,30 @@ function Dashboard() {
 function Login() {
   const navigate = useNavigate();
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Mặc định true để chờ check redirect
+  
+  useEffect(() => {
+    const auth = getAuth();
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result) {
+          const user = result.user;
+          localStorage.setItem('isAuthenticated', 'true');
+          if (user.displayName) localStorage.setItem('farmAppUserName', user.displayName);
+          if (user.photoURL) localStorage.setItem('farmAppCustomAvatar', user.photoURL);
+          navigate('/');
+        }
+      })
+      .catch((error) => {
+        console.error("Lỗi Redirect:", error);
+        if (error.code !== 'auth/redirect-cancelled-by-user') {
+          setError(`Đăng nhập thất bại: ${error.message}`);
+        }
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [navigate]);
   
   const handleGoogleLogin = async () => {
     const auth = getAuth();
@@ -1960,18 +1983,26 @@ function Login() {
     setError('');
     
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      localStorage.setItem('isAuthenticated', 'true');
-      if (user.displayName) localStorage.setItem('farmAppUserName', user.displayName);
-      if (user.photoURL) localStorage.setItem('farmAppCustomAvatar', user.photoURL);
-      
-      navigate('/');
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        // Điện thoại: Chuyển hướng trang để tránh lỗi chặn Popup
+        await signInWithRedirect(auth, provider);
+      } else {
+        // PC: Dùng Popup cho mượt
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        
+        localStorage.setItem('isAuthenticated', 'true');
+        if (user.displayName) localStorage.setItem('farmAppUserName', user.displayName);
+        if (user.photoURL) localStorage.setItem('farmAppCustomAvatar', user.photoURL);
+        
+        navigate('/');
+      }
     } catch (error) {
       console.error(error);
-      setError('Đăng nhập thất bại. Vui lòng thử lại!');
-    } finally {
+      if (error.code !== 'auth/popup-closed-by-user') {
+        setError(`Lỗi: ${error.message}`);
+      }
       setIsLoading(false);
     }
   };
