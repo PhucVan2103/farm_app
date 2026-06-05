@@ -558,29 +558,39 @@ function Dashboard() {
     e.preventDefault();
     if (!newFinance.amount || !newFinance.date) return;
     
-    if (editingFinanceId) {
-      await updateDoc(doc(db, "finances", editingFinanceId), {
-        ...newFinance, amount: parseFloat(newFinance.amount)
-      });
-      toast.success('Đã cập nhật giao dịch!');
-    } else {
-      await addDoc(collection(db, "finances"), {
-        ...newFinance, amount: parseFloat(newFinance.amount), createdAt: Date.now()
-      });
-      toast.success('Đã lưu giao dịch!');
+    try {
+      if (editingFinanceId) {
+        await updateDoc(doc(db, "finances", editingFinanceId), {
+          ...newFinance, amount: parseFloat(newFinance.amount)
+        });
+        toast.success('Đã cập nhật giao dịch!');
+      } else {
+        await addDoc(collection(db, "finances"), {
+          ...newFinance, amount: parseFloat(newFinance.amount), createdAt: Date.now()
+        });
+        toast.success('Đã lưu giao dịch!');
+      }
+      closeFinanceModal();
+    } catch (error) {
+      console.error("Lỗi khi lưu Giao dịch:", error);
+      toast.error("Không thể lưu: " + error.message);
     }
-    closeFinanceModal();
   };
 
   const handleAddYield = async (e) => {
     e.preventDefault();
     if (!newYield.weight || !newYield.date || !newYield.price) return;
-    await addDoc(collection(db, "yields"), {
-      ...newYield, weight: parseFloat(newYield.weight), price: parseFloat(newYield.price), createdAt: Date.now()
-    });
-    setShowYieldModal(false);
-    toast.success('Đã lưu mẻ thu hoạch!');
-    setNewYield({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
+    try {
+      await addDoc(collection(db, "yields"), {
+        ...newYield, weight: parseFloat(newYield.weight), price: parseFloat(newYield.price), createdAt: Date.now()
+      });
+      setShowYieldModal(false);
+      toast.success('Đã lưu mẻ thu hoạch!');
+      setNewYield({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
+    } catch (error) {
+      console.error("Lỗi khi lưu Mẻ thu hoạch:", error);
+      toast.error("Không thể lưu: " + error.message);
+    }
   };
 
   const toggleTaskStatus = async (taskId) => {
