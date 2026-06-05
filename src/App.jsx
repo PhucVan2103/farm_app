@@ -218,6 +218,11 @@ function Dashboard() {
   const [finances, setFinances] = useState([]);
   const [yields, setYields] = useState([]);
   const [articles, setArticles] = useState(INITIAL_ARTICLES);
+  
+  // States cho Quản lý danh mục
+  const [categories, setCategories] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryType, setNewCategoryType] = useState('task');
 
   // States cho tìm kiếm AI Gemini
   const [searchQuery, setSearchQuery] = useState('');
@@ -291,6 +296,23 @@ function Dashboard() {
   });
   const [newYield, setNewYield] = useState({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
 
+  // Mảng danh mục động (Kết hợp giữa dữ liệu Firebase và mặc định)
+  const defaultTaskCategories = ['Tưới nước', 'Bón phân', 'Làm cành', 'Làm cỏ', 'Phun thuốc'];
+  const defaultFinanceThuCategories = ['Bán hàng', 'Hỗ trợ', 'Khác'];
+  const defaultFinanceChiCategories = ['Vật tư', 'Nhân công', 'Xăng/Điện', 'Khác'];
+
+  const taskCategories = categories.filter(c => c.type === 'task').length > 0 
+    ? categories.filter(c => c.type === 'task').map(c => c.name) 
+    : defaultTaskCategories;
+  
+  const financeThuCategories = categories.filter(c => c.type === 'finance_thu').length > 0 
+    ? categories.filter(c => c.type === 'finance_thu').map(c => c.name) 
+    : defaultFinanceThuCategories;
+
+  const financeChiCategories = categories.filter(c => c.type === 'finance_chi').length > 0 
+    ? categories.filter(c => c.type === 'finance_chi').map(c => c.name) 
+    : defaultFinanceChiCategories;
+
   const theme = themeMode === 'light' ? LIGHT_THEME : DARK_THEME;
   const backgroundUrl = customBg || (themeMode === 'light' 
     ? '' 
@@ -300,9 +322,10 @@ function Dashboard() {
     let tasksLoaded = false;
     let financesLoaded = false;
     let yieldsLoaded = false;
+    let categoriesLoaded = false;
 
     const checkLoading = () => {
-      if (tasksLoaded && financesLoaded && yieldsLoaded) setIsLoading(false);
+      if (tasksLoaded && financesLoaded && yieldsLoaded && categoriesLoaded) setIsLoading(false);
     };
 
     const qTasks = query(collection(db, "tasks"), orderBy("createdAt", "desc"), limit(dataLimit));
@@ -323,10 +346,17 @@ function Dashboard() {
       yieldsLoaded = true; checkLoading();
     });
 
+    const qCategories = query(collection(db, "categories"), orderBy("createdAt", "asc"));
+    const unsubCategories = onSnapshot(qCategories, (snapshot) => {
+      setCategories(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      categoriesLoaded = true; checkLoading();
+    });
+
     return () => {
       unsubTasks();
       unsubFinances();
       unsubYields();
+      unsubCategories();
     };
   }, [dataLimit]);
 
@@ -522,12 +552,12 @@ function Dashboard() {
   const closeTaskModal = () => {
     setShowTaskModal(false);
     setEditingTaskId(null);
-    setNewTask({ title: '', category: 'Tưới nước', date: '', rows: '', note: '', hasLabor: false, laborCount: '', laborPrice: '' });
+    setNewTask({ title: '', category: taskCategories[0] || 'Tưới nước', date: '', rows: '', note: '', hasLabor: false, laborCount: '', laborPrice: '' });
   };
 
   const openAddTaskModal = () => {
     setEditingTaskId(null);
-    setNewTask({ title: '', category: 'Tưới nước', date: '', rows: '', note: '', hasLabor: false, laborCount: '', laborPrice: '' });
+    setNewTask({ title: '', category: taskCategories[0] || 'Tưới nước', date: '', rows: '', note: '', hasLabor: false, laborCount: '', laborPrice: '' });
     setShowTaskModal(true);
   };
 
@@ -620,12 +650,12 @@ function Dashboard() {
   const closeFinanceModal = () => {
     setShowFinanceModal(false);
     setEditingFinanceId(null);
-    setNewFinance({ type: 'chi', amount: '', note: '', date: '', category: 'Vật tư', soldWeight: '', pricePerKg: '' });
+    setNewFinance({ type: 'chi', amount: '', note: '', date: '', category: financeChiCategories[0] || 'Vật tư', soldWeight: '', pricePerKg: '' });
   };
 
   const openAddFinanceModal = () => {
     setEditingFinanceId(null);
-    setNewFinance({ type: 'chi', amount: '', note: '', date: '', category: 'Vật tư', soldWeight: '', pricePerKg: '' });
+    setNewFinance({ type: 'chi', amount: '', note: '', date: '', category: financeChiCategories[0] || 'Vật tư', soldWeight: '', pricePerKg: '' });
     setShowFinanceModal(true);
   };
 
@@ -749,6 +779,29 @@ function Dashboard() {
       const newStatus = task.status === 'pending' ? 'completed' : 'pending';
       await updateDoc(doc(db, "tasks", taskId), { status: newStatus });
       if (newStatus === 'completed') toast.success('Đã hoàn thành công việc!');
+    }
+  };
+
+  // Quản lý danh mục động
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      await addDoc(collection(db, "categories"), { name: newCategoryName.trim(), type: newCategoryType, createdAt: Date.now() });
+      setNewCategoryName('');
+      toast.success('Đã thêm danh mục!');
+    } catch (error) {
+      toast.error('Lỗi: ' + error.message);
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (window.confirm("Xóa danh mục này? Dữ liệu cũ sử dụng danh mục này vẫn được giữ nguyên.")) {
+      try {
+        await deleteDoc(doc(db, "categories", id));
+        toast.success("Đã xóa danh mục!");
+      } catch (error) {
+        toast.error("Lỗi xóa: " + error.message);
+      }
     }
   };
 
@@ -1258,6 +1311,37 @@ function Dashboard() {
               />
             </div>
 
+            {/* Cài đặt Danh mục (Dynamic Categories) */}
+            <div className="space-y-2 pt-3 border-t border-white/10">
+              <label className="block text-[10px] font-medium text-white/70 uppercase tracking-wider">Quản lý danh mục</label>
+              <div className="flex gap-2 mb-2">
+                <select 
+                  className={`w-1/3 rounded-lg p-2 ${theme.inputGlass} outline-none text-[10px] appearance-none`}
+                  value={newCategoryType}
+                  onChange={(e) => setNewCategoryType(e.target.value)}
+                >
+                  <option value="task" className="bg-slate-900 text-white">Công việc</option>
+                  <option value="finance_chi" className="bg-slate-900 text-white">Khoản Chi</option>
+                  <option value="finance_thu" className="bg-slate-900 text-white">Khoản Thu</option>
+                </select>
+                <input 
+                  type="text" placeholder="Tên danh mục..."
+                  className={`flex-1 rounded-lg p-2 ${theme.inputGlass} outline-none text-[10px]`}
+                  value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)}
+                />
+                <button onClick={handleAddCategory} className="bg-green-500/20 hover:bg-green-500/30 text-green-300 font-bold px-3 rounded-lg transition-colors text-[10px]">Thêm</button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1 scrollbar-none">
+                {categories.filter(c => c.type === newCategoryType).map(c => (
+                  <div key={c.id} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-md">
+                    <span className="text-[10px] text-white/90">{c.name}</span>
+                    <button onClick={() => handleDeleteCategory(c.id)} className="text-white/40 hover:text-red-400"><X className="w-3 h-3" /></button>
+                  </div>
+                ))}
+                {categories.filter(c => c.type === newCategoryType).length === 0 && <span className="text-[9px] text-white/40 italic">Sẽ dùng mặc định</span>}
+              </div>
+            </div>
+
             {/* Nút Bật thông báo đẩy */}
             <div className="pt-4 mt-2 border-t border-white/10">
               {fcmToken ? (
@@ -1561,11 +1645,9 @@ function Dashboard() {
                     value={newTask.category}
                     onChange={(e) => setNewTask({...newTask, category: e.target.value})}
                   >
-                    <option value="Tưới nước" className="bg-slate-900 text-white">Tưới nước</option>
-                    <option value="Bón phân" className="bg-slate-900 text-white">Bón phân</option>
-                    <option value="Làm cành" className="bg-slate-900 text-white">Làm cành</option>
-                    <option value="Làm cỏ" className="bg-slate-900 text-white">Làm cỏ</option>
-                    <option value="Phun thuốc" className="bg-slate-900 text-white">Phun thuốc</option>
+                    {taskCategories.map(cat => (
+                      <option key={cat} value={cat} className="bg-slate-900 text-white">{cat}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -1669,12 +1751,12 @@ function Dashboard() {
               <form onSubmit={handleAddFinance} className="space-y-4">
                 <div className="flex gap-3 mb-2">
                   <label className={`flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl cursor-pointer transition-all border ${newFinance.type === 'thu' ? 'border-green-400 bg-green-400/20 text-green-300' : 'border-transparent bg-black/20 text-white/60'}`}>
-                    <input type="radio" name="type" className="hidden" checked={newFinance.type === 'thu'} onChange={() => setNewFinance({...newFinance, type: 'thu', category: 'Bán hàng'})} />
+                    <input type="radio" name="type" className="hidden" checked={newFinance.type === 'thu'} onChange={() => setNewFinance({...newFinance, type: 'thu', category: financeThuCategories[0] || 'Bán hàng'})} />
                     <TrendingUp className="w-5 h-5" />
                     <span className="font-semibold text-[10px] uppercase tracking-wider">Khoản Thu</span>
                   </label>
                   <label className={`flex-1 flex flex-col items-center justify-center gap-2 p-4 rounded-2xl cursor-pointer transition-all border ${newFinance.type === 'chi' ? 'border-red-400 bg-red-400/20 text-red-300' : 'border-transparent bg-black/20 text-white/60'}`}>
-                    <input type="radio" name="type" className="hidden" checked={newFinance.type === 'chi'} onChange={() => setNewFinance({...newFinance, type: 'chi', category: 'Vật tư'})} />
+                    <input type="radio" name="type" className="hidden" checked={newFinance.type === 'chi'} onChange={() => setNewFinance({...newFinance, type: 'chi', category: financeChiCategories[0] || 'Vật tư'})} />
                     <Wallet className="w-5 h-5" />
                     <span className="font-semibold text-[10px] uppercase tracking-wider">Khoản Chi</span>
                   </label>
@@ -1746,18 +1828,13 @@ function Dashboard() {
                       onChange={(e) => setNewFinance({...newFinance, category: e.target.value})}
                     >
                       {newFinance.type === 'chi' ? (
-                        <>
-                          <option className="bg-green-900 text-white">Vật tư</option>
-                          <option className="bg-green-900 text-white">Nhân công</option>
-                          <option className="bg-green-900 text-white">Xăng/Điện</option>
-                          <option className="bg-green-900 text-white">Khác</option>
-                        </>
+                        financeChiCategories.map(cat => (
+                          <option key={cat} value={cat} className="bg-green-900 text-white">{cat}</option>
+                        ))
                       ) : (
-                        <>
-                          <option className="bg-green-900 text-white">Bán hàng</option>
-                          <option className="bg-green-900 text-white">Hỗ trợ</option>
-                          <option className="bg-green-900 text-white">Khác</option>
-                        </>
+                        financeThuCategories.map(cat => (
+                          <option key={cat} value={cat} className="bg-green-900 text-white">{cat}</option>
+                        ))
                       )}
                     </select>
                   </div>
