@@ -20,7 +20,7 @@ export default function FinanceTab({
   openEditFinanceModal,
   handleDeleteFinance
 }) {
-  const doughnutData = {
+  const doughnutData = React.useMemo(() => ({
     labels: ['Tổng Thu', 'Tổng Chi'],
     datasets: [
       {
@@ -31,9 +31,9 @@ export default function FinanceTab({
         hoverOffset: 4
       },
     ],
-  };
+  }), [financeStats.thu, financeStats.chi]);
 
-  const doughnutOptions = {
+  const doughnutOptions = React.useMemo(() => ({
     cutout: '75%',
     plugins: {
       legend: { display: false },
@@ -45,7 +45,7 @@ export default function FinanceTab({
         }
       }
     }
-  };
+  }), [formatCurrency]);
 
   return (
     <div className="p-3 h-full flex flex-col pt-4">

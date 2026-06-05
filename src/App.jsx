@@ -45,7 +45,7 @@ import {
   Pencil,
   Trash2
 } from 'lucide-react';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js';
+import { Chart as ChartJS, registerables } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { messaging } from './firebase';
 import { getToken, onMessage } from 'firebase/messaging';
@@ -58,7 +58,7 @@ import KnowledgeTab from './KnowledgeTab';
 import TasksTab from './TasksTab';
 import FinanceTab from './FinanceTab';
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement);
+ChartJS.register(...registerables);
 
 // Dữ liệu dự báo thời tiết 7 ngày tại Chư Prông, Gia Lai
 const FORECAST_7_DAYS = [
@@ -203,6 +203,10 @@ const getNotificationRelativeTime = (dateString) => {
     if (diffDays === 0) return 'Hôm nay';
     if (diffDays === 1) return 'Ngày mai';
     return `Trong ${diffDays} ngày`;
+};
+
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 };
 
 function Dashboard() {
@@ -829,10 +833,6 @@ function Dashboard() {
   const yearlyTotalChi = monthlyStats.reduce((sum, stat) => sum + stat.chi, 0);
   const yearlyProfit = yearlyTotalThu - yearlyTotalChi;
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-  };
-
   // Memoize để tối ưu hiệu suất render thay vì tính toán lại mỗi lần chuyển tab/nhập form
   const pendingTasks = useMemo(() => tasks.filter(t => t.status === 'pending'), [tasks]);
   
@@ -960,6 +960,98 @@ function Dashboard() {
       prevYear: previous.year
     };
   }, [yearlyYieldStats]);
+
+  // Tối ưu hóa ChartJS: Bọc data và options vào useMemo để tránh lỗi "Canvas is already in use" khi render liên tục
+  const yieldChartData = useMemo(() => ({
+    labels: yearlyYieldStats.map(s => `Năm ${s.year}`),
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Sản lượng',
+        data: yearlyYieldStats.map(s => s.weight),
+        backgroundColor: 'rgba(249, 115, 22, 0.7)',
+        borderColor: 'rgba(249, 115, 22, 1)',
+        yAxisID: 'y_kg',
+        order: 2
+      },
+      {
+        type: 'line',
+        label: 'Doanh thu',
+        data: yearlyYieldStats.map(s => s.revenue),
+        backgroundColor: 'rgba(74, 222, 128, 1)',
+        borderColor: 'rgba(74, 222, 128, 1)',
+        yAxisID: 'y_vnd',
+        tension: 0.3,
+        fill: false,
+        pointBackgroundColor: 'rgba(74, 222, 128, 1)',
+        pointBorderColor: '#fff',
+        pointHoverRadius: 6,
+        order: 1
+      }
+    ]
+  }), [yearlyYieldStats]);
+
+  const yieldChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
+    plugins: {
+      legend: { 
+        position: 'top',
+        labels: {
+          color: 'rgba(255,255,255,0.8)',
+          font: { size: 10 },
+          usePointStyle: true,
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              if (context.dataset.yAxisID === 'y_vnd') {
+                label += formatCurrency(context.parsed.y);
+              } else {
+                label += `${context.parsed.y.toLocaleString('vi-VN')} kg`;
+              }
+            }
+            return label;
+          },
+          afterBody: function(contexts) {
+            if (contexts && contexts.length > 0) {
+              const dataIndex = contexts[0].dataIndex;
+              const notes = yearlyYieldStats[dataIndex].notes;
+              if (notes && notes.length > 0) {
+                return ['', 'Ghi chú:', ...notes.map(n => `• ${n}`)];
+              }
+            }
+            return [];
+          }
+        }
+      }
+    },
+    scales: {
+      y_kg: {
+        type: 'linear', display: true, position: 'left', beginAtZero: true,
+        grid: { drawOnChartArea: false },
+        ticks: { color: 'rgba(249, 115, 22, 1)', font: { size: 9 }, callback: (value) => `${value.toLocaleString('vi-VN')} kg` },
+        title: { display: false }
+      },
+      y_vnd: {
+        type: 'linear', display: true, position: 'right', beginAtZero: true,
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        ticks: { color: 'rgba(74, 222, 128, 1)', font: { size: 9 }, callback: function(value) { if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)} tỷ`; if (value >= 1000000) return `${(value / 1000000).toFixed(0)} tr`; return '0'; } },
+        title: { display: false }
+      },
+      x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.7)', font: { size: 10 } } }
+    }
+  }), [yearlyYieldStats]);
 
   const formattedSelectedDate = useMemo(() => formatDate(selectedDate), [selectedDate]);
   const selectedDateTasks = useMemo(() => tasks.filter(t => t.date === formattedSelectedDate), [tasks, formattedSelectedDate]);
@@ -1676,126 +1768,7 @@ function Dashboard() {
               </div>
               
               <div className="w-full h-80 mt-2">
-                <Bar 
-                  data={{
-                    labels: yearlyYieldStats.map(s => `Năm ${s.year}`),
-                    datasets: [
-                      {
-                        type: 'bar',
-                        label: 'Sản lượng',
-                        data: yearlyYieldStats.map(s => s.weight),
-                        backgroundColor: 'rgba(249, 115, 22, 0.7)',
-                        borderColor: 'rgba(249, 115, 22, 1)',
-                        yAxisID: 'y_kg',
-                        order: 2
-                      },
-                      {
-                        type: 'line',
-                        label: 'Doanh thu',
-                        data: yearlyYieldStats.map(s => s.revenue),
-                        backgroundColor: 'rgba(74, 222, 128, 1)',
-                        borderColor: 'rgba(74, 222, 128, 1)',
-                        yAxisID: 'y_vnd',
-                        tension: 0.3,
-                        fill: false,
-                        pointBackgroundColor: 'rgba(74, 222, 128, 1)',
-                        pointBorderColor: '#fff',
-                        pointHoverRadius: 6,
-                        order: 1
-                      }
-                    ]
-                  }}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                      mode: 'index',
-                      intersect: false,
-                    },
-                    plugins: {
-                      legend: { 
-                        position: 'top',
-                        labels: {
-                          color: 'rgba(255,255,255,0.8)',
-                          font: { size: 10 },
-                          usePointStyle: true,
-                        }
-                      },
-                      tooltip: {
-                        callbacks: {
-                          label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) {
-                              label += ': ';
-                            }
-                            if (context.parsed.y !== null) {
-                              if (context.dataset.yAxisID === 'y_vnd') {
-                                label += formatCurrency(context.parsed.y);
-                              } else {
-                                label += `${context.parsed.y.toLocaleString('vi-VN')} kg`;
-                              }
-                            }
-                            return label;
-                          },
-                          afterBody: function(contexts) {
-                            if (contexts && contexts.length > 0) {
-                              const dataIndex = contexts[0].dataIndex;
-                              const notes = yearlyYieldStats[dataIndex].notes;
-                              if (notes && notes.length > 0) {
-                                return ['', 'Ghi chú:', ...notes.map(n => `• ${n}`)];
-                              }
-                            }
-                            return [];
-                          }
-                        }
-                      }
-                    },
-                    scales: {
-                      y_kg: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        beginAtZero: true,
-                        grid: {
-                          drawOnChartArea: false,
-                        },
-                        ticks: {
-                          color: 'rgba(249, 115, 22, 1)',
-                          font: { size: 9 },
-                          callback: (value) => `${value.toLocaleString('vi-VN')} kg`
-                        },
-                        title: {
-                          display: false,
-                        }
-                      },
-                      y_vnd: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        beginAtZero: true,
-                        grid: {
-                          color: 'rgba(255,255,255,0.05)'
-                        },
-                        ticks: {
-                          color: 'rgba(74, 222, 128, 1)',
-                          font: { size: 9 },
-                          callback: function(value) {
-                            if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)} tỷ`;
-                            if (value >= 1000000) return `${(value / 1000000).toFixed(0)} tr`;
-                            return '0';
-                          }
-                        },
-                        title: {
-                          display: false,
-                        }
-                      },
-                      x: {
-                        grid: { display: false },
-                        ticks: { color: 'rgba(255,255,255,0.7)', font: { size: 10 } }
-                      }
-                    }
-                  }}
-                />
+                <Bar data={yieldChartData} options={yieldChartOptions} />
               </div>
               
               {yieldTrend && (
