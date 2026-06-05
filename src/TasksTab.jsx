@@ -24,7 +24,11 @@ export default function TasksTab({
   selectedDate,
   setSelectedDate,
   formatDate,
-  selectedDateTasks
+  selectedDateTasks,
+  dataLimit,
+  tasksCount,
+  handleLoadMore,
+  isLoading
 }) {
   const getCategoryIcon = (category) => {
     switch(category) {
@@ -34,6 +38,18 @@ export default function TasksTab({
       default: return <Circle className="w-3.5 h-3.5 text-white/50" />;
     }
   };
+
+  const renderSkeleton = () => (
+    <div className={`${theme.cardGlass} p-3 rounded-2xl flex flex-col gap-1.5 animate-pulse mb-2`}>
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-white/10 flex-shrink-0"></div>
+        <div className="flex-1 space-y-2">
+          <div className="h-3 bg-white/20 rounded w-3/4"></div>
+          <div className="h-2 bg-white/10 rounded w-1/2"></div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-3 h-full flex flex-col pt-4">
@@ -70,7 +86,9 @@ export default function TasksTab({
             <div>
               <h3 className={`font-semibold text-white/60 text-[9px] tracking-widest uppercase mb-3 px-1`}>Đang thực hiện</h3>
               <div className="space-y-2">
-                {pendingTasks.map(task => (
+                {isLoading ? (
+                  Array(3).fill(0).map((_, i) => <React.Fragment key={i}>{renderSkeleton()}</React.Fragment>)
+                ) : pendingTasks.map(task => (
                   <div 
                     key={task.id} 
                     draggable
@@ -125,7 +143,9 @@ export default function TasksTab({
             <div>
               <h3 className={`font-semibold text-white/60 text-[9px] tracking-widest uppercase mb-3 px-1`}>Đã hoàn thành</h3>
               <div className="space-y-2">
-                {completedTasks.map(task => (
+                {isLoading ? (
+                  Array(2).fill(0).map((_, i) => <React.Fragment key={i}>{renderSkeleton()}</React.Fragment>)
+                ) : completedTasks.map(task => (
                   <div key={task.id} className={`bg-white/5 backdrop-blur-sm border border-white/10 p-3 rounded-2xl flex flex-col gap-1.5 transition-colors opacity-70`}>
                     <div className="flex items-center gap-3">
                       <div className={`bg-white/5 p-2.5 rounded-xl flex-shrink-0`}>
@@ -164,6 +184,12 @@ export default function TasksTab({
                 ))}
               </div>
             </div>
+            
+            {tasksCount >= dataLimit && (
+              <button onClick={handleLoadMore} className="w-full py-3 mt-4 text-white/50 text-[10px] font-medium bg-white/5 hover:bg-white/10 rounded-2xl transition-colors border border-white/5">
+                Tải thêm công việc cũ...
+              </button>
+            )}
           </div>
         ) : (
           <div className="pb-4">

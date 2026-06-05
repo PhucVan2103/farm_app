@@ -50,7 +50,7 @@ import { Bar } from 'react-chartjs-2';
 import { messaging } from './firebase';
 import { getToken, onMessage } from 'firebase/messaging';
 import toast, { Toaster } from 'react-hot-toast';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./firebase";
 import YieldTab from './YieldTab';
 import HomeTab from './HomeTab';
@@ -254,6 +254,11 @@ function Dashboard() {
   const [editingFinanceId, setEditingFinanceId] = useState(null);
   const [editingYieldId, setEditingYieldId] = useState(null);
 
+  // State cho Giới hạn dữ liệu (Pagination)
+  const [isLoading, setIsLoading] = useState(true);
+  const [dataLimit, setDataLimit] = useState(100);
+  const handleLoadMore = () => setDataLimit(prev => prev + 100);
+
   // State cho Giao diện & Ảnh nền
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('farmAppTheme') || 'light');
   const [customBg, setCustomBg] = useState(() => localStorage.getItem('farmAppCustomBg') || null);
@@ -291,19 +296,30 @@ function Dashboard() {
     : 'https://images.unsplash.com/photo-1596547609652-9fc5d8d428ce?q=80&w=600&auto=format&fit=crop');
 
   useEffect(() => {
-    const qTasks = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
+    let tasksLoaded = false;
+    let financesLoaded = false;
+    let yieldsLoaded = false;
+
+    const checkLoading = () => {
+      if (tasksLoaded && financesLoaded && yieldsLoaded) setIsLoading(false);
+    };
+
+    const qTasks = query(collection(db, "tasks"), orderBy("createdAt", "desc"), limit(dataLimit));
     const unsubTasks = onSnapshot(qTasks, (snapshot) => {
       setTasks(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      tasksLoaded = true; checkLoading();
     });
 
-    const qFinances = query(collection(db, "finances"), orderBy("createdAt", "desc"));
+    const qFinances = query(collection(db, "finances"), orderBy("createdAt", "desc"), limit(dataLimit));
     const unsubFinances = onSnapshot(qFinances, (snapshot) => {
       setFinances(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      financesLoaded = true; checkLoading();
     });
 
-    const qYields = query(collection(db, "yields"), orderBy("createdAt", "desc"));
+    const qYields = query(collection(db, "yields"), orderBy("createdAt", "desc"), limit(dataLimit));
     const unsubYields = onSnapshot(qYields, (snapshot) => {
       setYields(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      yieldsLoaded = true; checkLoading();
     });
 
     return () => {
@@ -311,7 +327,7 @@ function Dashboard() {
       unsubFinances();
       unsubYields();
     };
-  }, []);
+  }, [dataLimit]);
 
   useEffect(() => {
     localStorage.setItem('farmAppTheme', themeMode);
@@ -480,6 +496,14 @@ function Dashboard() {
       // Ví dụ: localStorage.removeItem('authToken'); window.location.href = '/login';
       alert("Chức năng Đăng nhập/Đăng xuất sẽ được hoàn thiện trong phiên bản tới!");
     }
+  };
+
+  // Hàm tiện ích tự động thêm dấu phẩy ngàn cho Text Input (e.g. 15,000,000)
+  const formatNumberInput = (val) => {
+    if (val === null || val === undefined) return '';
+    const numericStr = val.toString().replace(/\D/g, '');
+    if (!numericStr) return '';
+    return numericStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   };
 
   const [weather] = useState({
@@ -1310,14 +1334,54 @@ function Dashboard() {
 
   return (
     <div 
-      className={`${themeMode === 'light' ? 'bg-gray-100' : 'bg-[#0f172a]'} min-h-[100dvh] font-sans flex items-center justify-center p-0 md:p-6 bg-cover bg-center transition-all duration-500`}
+      className={`${themeMode === 'light' ? 'bg-gray-100' : 'bg-[#0f172a]'} min-h-[100dvh] font-sans flex items-center justify-center p-0 md:p-0 bg-cover bg-center transition-all duration-500`}
       style={backgroundUrl ? { backgroundImage: `url(${backgroundUrl})` } : {}}
     >
-      {/* Mobile Frame Wrapper */}
-      <div className={`w-full h-[100dvh] md:max-w-[430px] md:h-[800px] md:rounded-[40px] md:border-[8px] md:border-black/50 ${theme.appWrapper} backdrop-blur-3xl relative shadow-2xl flex flex-col overflow-hidden`}>
+      {/* App Frame Wrapper */}
+      <div className={`w-full h-[100dvh] ${theme.appWrapper} backdrop-blur-3xl relative flex overflow-hidden shadow-2xl`}>
         
-        {/* Dynamic App Shell Content Area */}
-        <div className="flex-1 absolute inset-0 overflow-y-auto scrollbar-none pb-32" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        {/* Desktop Sidebar (Hiển thị trên iPad/Máy tính) */}
+        <div className={`hidden md:flex flex-col w-64 ${theme.cardGlass} border-r border-white/10 z-30 flex-shrink-0 shadow-xl`}>
+          <div className="p-6">
+            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+              <Leaf className="text-green-400 w-6 h-6" /> Nông Trại App
+            </h1>
+          </div>
+          <div className="flex-1 flex flex-col gap-2 px-4 mt-2">
+            <button onClick={() => setActiveTab('home')} className={`flex items-center gap-3 p-3.5 rounded-2xl transition-all ${activeTab === 'home' ? 'bg-green-500/20 text-green-300 font-bold border border-green-500/30 shadow-lg' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+              <Home className="w-5 h-5" /> Trang chủ
+            </button>
+            <button onClick={() => setActiveTab('knowledge')} className={`flex items-center gap-3 p-3.5 rounded-2xl transition-all ${activeTab === 'knowledge' ? 'bg-green-500/20 text-green-300 font-bold border border-green-500/30 shadow-lg' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+              <BookOpen className="w-5 h-5" /> Chuyên gia AI
+            </button>
+            <button onClick={() => setActiveTab('tasks')} className={`flex items-center gap-3 p-3.5 rounded-2xl transition-all ${activeTab === 'tasks' ? 'bg-green-500/20 text-green-300 font-bold border border-green-500/30 shadow-lg' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+              <CalendarCheck className="w-5 h-5" /> Công việc
+            </button>
+            <button onClick={() => setActiveTab('yield')} className={`flex items-center gap-3 p-3.5 rounded-2xl transition-all ${activeTab === 'yield' ? 'bg-green-500/20 text-green-300 font-bold border border-green-500/30 shadow-lg' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+              <Scale className="w-5 h-5" /> Sản lượng
+            </button>
+            <button onClick={() => setActiveTab('finance')} className={`flex items-center gap-3 p-3.5 rounded-2xl transition-all ${activeTab === 'finance' ? 'bg-green-500/20 text-green-300 font-bold border border-green-500/30 shadow-lg' : 'text-white/60 hover:bg-white/10 hover:text-white'}`}>
+              <Wallet className="w-5 h-5" /> Sổ thu chi
+            </button>
+          </div>
+          {/* Sidebar Mini Profile */}
+          <div className="p-4 border-t border-white/10 mt-auto">
+            <div className="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-2 rounded-xl transition-colors" onClick={() => setShowSettingsModal(true)}>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center border border-white/10 shrink-0 overflow-hidden">
+                 {customAvatar ? <img src={customAvatar} alt="Avatar" className="w-full h-full object-cover" /> : <span className="text-[#fff] font-bold text-sm shadow-sm">{userName ? userName.charAt(0).toUpperCase() : '👤'}</span>}
+              </div>
+              <div className="flex flex-col overflow-hidden">
+                <span className="text-sm font-bold text-white truncate">{userName || 'Chủ vườn'}</span>
+                <span className="text-[10px] text-white/50 truncate">Cài đặt & Tài khoản</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col relative w-full h-[100dvh] max-w-[100vw] md:max-w-none">
+          <div className="flex-1 absolute inset-0 overflow-y-auto scrollbar-none pb-24 md:pb-6" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className="max-w-4xl mx-auto h-full w-full">
             {activeTab === 'home' && (
               <HomeTab 
                 themeMode={themeMode}
@@ -1374,6 +1438,10 @@ function Dashboard() {
                 setSelectedDate={setSelectedDate}
                 formatDate={formatDate}
                 selectedDateTasks={selectedDateTasks}
+                dataLimit={dataLimit}
+                tasksCount={tasks.length}
+                handleLoadMore={handleLoadMore}
+                isLoading={isLoading}
               />
             )}
             {activeTab === 'finance' && (
@@ -1394,6 +1462,10 @@ function Dashboard() {
                 displayFinances={displayFinances}
                 openEditFinanceModal={openEditFinanceModal}
                 handleDeleteFinance={handleDeleteFinance}
+                dataLimit={dataLimit}
+                financesCount={finances.length}
+                handleLoadMore={handleLoadMore}
+                isLoading={isLoading}
               />
             )}
             {activeTab === 'yield' && (
@@ -1412,12 +1484,17 @@ function Dashboard() {
                 filteredYields={filteredYields}
                 totalSoldKg={totalSoldKg}
                 remainingYield={remainingYield}
+                dataLimit={dataLimit}
+                yieldsCount={yields.length}
+                handleLoadMore={handleLoadMore}
+                isLoading={isLoading}
               />
             )}
+            </div>
         </div>
 
-        {/* Floating Bottom Navigation Bar (Glassmorphism Pill) */}
-        <div className="absolute left-4 right-4 z-20" style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
+        {/* Floating Bottom Navigation Bar (Mobile only) */}
+        <div className="md:hidden absolute left-4 right-4 z-20" style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
           <div className={`${theme.bottomNavGlass} flex justify-around items-center p-2`}>
             <button 
               onClick={() => setActiveTab('home')}
@@ -1462,8 +1539,8 @@ function Dashboard() {
 
         {/* Add Task Modal */}
         {showTaskModal && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
-            <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[95%] overflow-y-auto`}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end md:items-center justify-center animate-in fade-in duration-200">
+            <div className={`${theme.modalGlass} w-full md:max-w-lg rounded-t-[32px] md:rounded-[32px] p-5 shadow-2xl max-h-[95%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-green-300">{editingTaskId ? 'Cập nhật công việc' : 'Thêm công việc mới'}</h3>
                 <button onClick={closeTaskModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
@@ -1551,9 +1628,9 @@ function Dashboard() {
                       <div>
                         <label className="block text-[8px] font-medium text-white/60 mb-0.5 uppercase tracking-wider">Đơn giá / Công (đ)</label>
                         <input 
-                          type="number" min="0" step="5000" placeholder="đ/ngày" required
+                          type="text" placeholder="đ/ngày" required
                           className={`w-full rounded-lg p-2 ${theme.inputGlass} outline-none text-[10px]`}
-                          value={newTask.laborPrice} onChange={(e) => setNewTask({...newTask, laborPrice: e.target.value})}
+                          value={formatNumberInput(newTask.laborPrice)} onChange={(e) => setNewTask({...newTask, laborPrice: e.target.value.replace(/,/g, '')})}
                         />
                       </div>
                       {newTask.laborCount && newTask.laborPrice && (
@@ -1575,8 +1652,8 @@ function Dashboard() {
 
         {/* Add Finance Modal */}
         {showFinanceModal && (
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
-            <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[90%] overflow-y-auto`}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center animate-in fade-in duration-200">
+            <div className={`${theme.modalGlass} w-full md:max-w-lg rounded-t-[32px] md:rounded-[32px] p-5 shadow-2xl max-h-[90%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-sm font-bold">{editingFinanceId ? 'Cập nhật giao dịch' : 'Giao dịch mới'}</h3>
                 <button onClick={closeFinanceModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
@@ -1611,18 +1688,18 @@ function Dashboard() {
                       <div>
                         <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Đơn giá (VNĐ/kg)</label>
                         <input 
-                          type="number" required min="0" placeholder="0"
+                          type="text" required placeholder="0"
                           className={`w-full rounded-xl p-3 text-sm font-bold ${theme.inputGlass} outline-none`}
-                          value={newFinance.pricePerKg} onChange={(e) => setNewFinance({...newFinance, pricePerKg: e.target.value})}
+                          value={formatNumberInput(newFinance.pricePerKg)} onChange={(e) => setNewFinance({...newFinance, pricePerKg: e.target.value.replace(/,/g, '')})}
                         />
                       </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Thành tiền (VNĐ)</label>
                       <input 
-                        type="number" required readOnly placeholder="0"
+                        type="text" required readOnly placeholder="0"
                         className={`w-full rounded-xl p-3 text-sm font-bold ${theme.inputGlass} outline-none bg-black/50 text-white/70 cursor-not-allowed`}
-                        value={newFinance.amount}
+                        value={formatNumberInput(newFinance.amount)}
                       />
                     </div>
                   </>
@@ -1630,9 +1707,9 @@ function Dashboard() {
                   <div>
                     <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Số tiền (VNĐ)</label>
                     <input 
-                      type="number" required min="0" placeholder="0"
+                      type="text" required placeholder="0"
                       className={`w-full rounded-xl p-3 text-sm font-bold ${theme.inputGlass} outline-none`}
-                      value={newFinance.amount} onChange={(e) => setNewFinance({...newFinance, amount: e.target.value})}
+                      value={formatNumberInput(newFinance.amount)} onChange={(e) => setNewFinance({...newFinance, amount: e.target.value.replace(/,/g, '')})}
                     />
                   </div>
                 )}
@@ -1788,8 +1865,8 @@ function Dashboard() {
 
         {/* Add Yield Modal */}
         {showYieldModal && (
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
-            <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[90%] overflow-y-auto`}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end md:items-center justify-center animate-in fade-in duration-200">
+            <div className={`${theme.modalGlass} w-full md:max-w-lg rounded-t-[32px] md:rounded-[32px] p-5 shadow-2xl max-h-[90%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-sm font-bold text-orange-300">{editingYieldId ? 'Cập nhật mẻ thu' : 'Thêm mẻ thu hoạch'}</h3>
                 <button onClick={closeYieldModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
@@ -1809,9 +1886,9 @@ function Dashboard() {
                   <div>
                     <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Đơn giá (VNĐ/kg)</label>
                     <input 
-                      type="number" required placeholder="0" min="0"
+                      type="text" required placeholder="0"
                       className={`w-full rounded-xl p-3 text-sm font-bold ${theme.inputGlass} outline-none text-yellow-300`}
-                      value={newYield.price} onChange={(e) => setNewYield({...newYield, price: e.target.value})}
+                      value={formatNumberInput(newYield.price)} onChange={(e) => setNewYield({...newYield, price: e.target.value.replace(/,/g, '')})}
                     />
                   </div>
                 </div>
@@ -1859,6 +1936,7 @@ function Dashboard() {
           </div>
         )}
 
+      </div>
       </div>
     </div>
   );

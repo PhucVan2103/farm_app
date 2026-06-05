@@ -18,7 +18,11 @@ export default function FinanceTab({
   setFinanceSearchQuery,
   displayFinances,
   openEditFinanceModal,
-  handleDeleteFinance
+  handleDeleteFinance,
+  dataLimit,
+  financesCount,
+  handleLoadMore,
+  isLoading
 }) {
   const doughnutData = React.useMemo(() => ({
     labels: ['Tổng Thu', 'Tổng Chi'],
@@ -46,6 +50,19 @@ export default function FinanceTab({
       }
     }
   }), [formatCurrency]);
+
+  const renderSkeleton = () => (
+    <div className={`${theme.cardGlass} p-3 rounded-2xl flex items-center justify-between animate-pulse mb-2`}>
+      <div className="flex items-center gap-3 w-full">
+        <div className="w-9 h-9 rounded-xl bg-white/10 flex-shrink-0"></div>
+        <div className="flex-1 space-y-2">
+          <div className="h-3 bg-white/20 rounded w-2/3"></div>
+          <div className="h-2 bg-white/10 rounded w-1/3"></div>
+        </div>
+        <div className="h-4 bg-white/20 rounded w-16"></div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-3 h-full flex flex-col pt-4">
@@ -151,7 +168,9 @@ export default function FinanceTab({
         </div>
 
         <div className="space-y-2">
-          {displayFinances.length > 0 ? (
+          {isLoading ? (
+            Array(4).fill(0).map((_, i) => <React.Fragment key={i}>{renderSkeleton()}</React.Fragment>)
+          ) : displayFinances.length > 0 ? (
             displayFinances.map(item => (
               <div key={item.id} className={`${theme.cardGlass} p-3 rounded-2xl flex items-center justify-between transition-colors hover:bg-white/20`}>
                 <div className="flex items-center gap-3 min-w-0">
@@ -178,6 +197,12 @@ export default function FinanceTab({
             <div className="text-center py-6 text-white/40 text-[10px] bg-white/5 rounded-2xl border border-dashed border-white/10">
               Không tìm thấy giao dịch nào.
             </div>
+          )}
+          
+          {financesCount >= dataLimit && (
+            <button onClick={handleLoadMore} className="w-full py-3 mt-2 text-white/50 text-[10px] font-medium bg-white/5 hover:bg-white/10 rounded-2xl transition-colors border border-white/5">
+              Tải thêm dữ liệu cũ...
+            </button>
           )}
         </div>
       </div>
