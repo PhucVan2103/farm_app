@@ -45,7 +45,7 @@ import {
   Pencil,
   Trash2
 } from 'lucide-react';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import { messaging } from './firebase';
 import { getToken, onMessage } from 'firebase/messaging';
@@ -54,7 +54,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, order
 import { db } from "./firebase";
 import YieldTab from './YieldTab';
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement);
 
 // Dữ liệu dự báo thời tiết 7 ngày tại Chư Prông, Gia Lai
 const FORECAST_7_DAYS = [
@@ -266,7 +266,15 @@ function Dashboard() {
     laborCount: '',
     laborPrice: ''
   });
-  const [newFinance, setNewFinance] = useState({ type: 'chi', amount: '', note: '', date: '', category: 'Vật tư' });
+  const [newFinance, setNewFinance] = useState({ 
+    type: 'chi', 
+    amount: '', 
+    note: '', 
+    date: '', 
+    category: 'Vật tư',
+    soldWeight: '',
+    pricePerKg: ''
+  });
   const [newYield, setNewYield] = useState({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
 
   const theme = themeMode === 'light' ? LIGHT_THEME : DARK_THEME;
@@ -333,6 +341,14 @@ function Dashboard() {
   useEffect(() => {
     localStorage.setItem('farmAppUserName', userName);
   }, [userName]);
+
+  useEffect(() => {
+    if (newFinance.type === 'thu' && newFinance.category === 'Bán hàng') {
+        const weight = parseFloat(newFinance.soldWeight) || 0;
+        const price = parseFloat(newFinance.pricePerKg) || 0;
+        setNewFinance(prev => ({ ...prev, amount: weight * price }));
+    }
+  }, [newFinance.soldWeight, newFinance.pricePerKg, newFinance.type, newFinance.category]);
 
   const handleThemeToggle = () => {
     setThemeMode(prev => prev === 'light' ? 'dark' : 'light');
@@ -501,7 +517,15 @@ function Dashboard() {
 
   const handleAddTask = async (e) => {
     e.preventDefault();
-    if (!newTask.title || !newTask.date) return;
+    if (!newTask.title || !newTask.date) {
+      toast.error('Vui lòng nhập tên và ngày thực hiện công việc!');
+      return;
+    }
+
+    if (newTask.hasLabor && (!newTask.laborCount || !newTask.laborPrice)) {
+      toast.error('Vui lòng nhập số lượng và đơn giá nhân công!');
+      return;
+    }
 
     let laborTotalCost = 0;
 
@@ -558,12 +582,12 @@ function Dashboard() {
   const closeFinanceModal = () => {
     setShowFinanceModal(false);
     setEditingFinanceId(null);
-    setNewFinance({ type: 'chi', amount: '', note: '', date: '', category: 'Vật tư' });
+    setNewFinance({ type: 'chi', amount: '', note: '', date: '', category: 'Vật tư', soldWeight: '', pricePerKg: '' });
   };
 
   const openAddFinanceModal = () => {
     setEditingFinanceId(null);
-    setNewFinance({ type: 'chi', amount: '', note: '', date: '', category: 'Vật tư' });
+    setNewFinance({ type: 'chi', amount: '', note: '', date: '', category: 'Vật tư', soldWeight: '', pricePerKg: '' });
     setShowFinanceModal(true);
   };
 
@@ -574,7 +598,9 @@ function Dashboard() {
       amount: finance.amount,
       note: finance.note,
       date: finance.date,
-      category: finance.category
+      category: finance.category,
+      soldWeight: finance.soldWeight || '',
+      pricePerKg: finance.pricePerKg || ''
     });
     setShowFinanceModal(true);
   };
@@ -588,17 +614,31 @@ function Dashboard() {
 
   const handleAddFinance = async (e) => {
     e.preventDefault();
-    if (!newFinance.amount || !newFinance.date) return;
+    if (!newFinance.amount || !newFinance.note || !newFinance.date) {
+      toast.error('Vui lòng nhập đầy đủ số tiền, nội dung và ngày giao dịch!');
+      return;
+    }
+
+    const financeData = {
+      ...newFinance, 
+      amount: parseFloat(newFinance.amount)
+    };
+
+    if (newFinance.type === 'thu' && newFinance.category === 'Bán hàng') {
+      financeData.soldWeight = parseFloat(newFinance.soldWeight);
+      financeData.pricePerKg = parseFloat(newFinance.pricePerKg);
+    } else {
+      delete financeData.soldWeight;
+      delete financeData.pricePerKg;
+    }
     
     try {
       if (editingFinanceId) {
-        await updateDoc(doc(db, "finances", editingFinanceId), {
-          ...newFinance, amount: parseFloat(newFinance.amount)
-        });
+        await updateDoc(doc(db, "finances", editingFinanceId), financeData);
         toast.success('Đã cập nhật giao dịch!');
       } else {
         await addDoc(collection(db, "finances"), {
-          ...newFinance, amount: parseFloat(newFinance.amount), createdAt: Date.now()
+          ...financeData, createdAt: Date.now()
         });
         toast.success('Đã lưu giao dịch!');
       }
@@ -642,7 +682,10 @@ function Dashboard() {
 
   const handleAddYield = async (e) => {
     e.preventDefault();
-    if (!newYield.weight || !newYield.date || !newYield.price) return;
+    if (!newYield.weight || !newYield.date || !newYield.price) {
+      toast.error('Vui lòng nhập đầy đủ trọng lượng, đơn giá và ngày thu!');
+      return;
+    }
     try {
       if (editingYieldId) {
         await updateDoc(doc(db, "yields", editingYieldId), {
@@ -870,7 +913,18 @@ function Dashboard() {
     return yields.filter(y => new Date(y.date).getFullYear().toString() === selectedYieldYear.toString());
   }, [yields, selectedYieldYear]);
 
+  const totalSoldKg = useMemo(() => {
+    return finances
+      .filter(f => f.type === 'thu' && f.category === 'Bán hàng' && f.soldWeight > 0)
+      .reduce((sum, f) => sum + parseFloat(f.soldWeight), 0);
+  }, [finances]);
+
   const totalYield = useMemo(() => filteredYields.reduce((sum, item) => sum + item.weight, 0), [filteredYields]);
+
+  const remainingYield = useMemo(() => {
+    const remaining = totalYield - totalSoldKg;
+    return remaining > 0 ? remaining : 0;
+  }, [totalYield, totalSoldKg]);
 
   // Tự động tính Doanh thu ước tính dựa trên giá thị trường tham khảo của từng phân loại
   const estimatedRevenue = useMemo(() => {
@@ -884,12 +938,20 @@ function Dashboard() {
     const stats = {};
     yields.forEach(y => {
       const year = new Date(y.date).getFullYear();
-      if (!stats[year]) stats[year] = 0;
-      stats[year] += y.weight;
+      if (!stats[year]) {
+        stats[year] = { weight: 0, revenue: 0, notes: [] };
+      }
+      stats[year].weight += y.weight;
+      stats[year].revenue += y.weight * (y.price || 0);
+      if (y.note && !stats[year].notes.includes(y.note)) {
+        stats[year].notes.push(y.note);
+      }
     });
     return Object.keys(stats).sort().map(year => ({
       year,
-      weight: stats[year]
+      weight: stats[year].weight,
+      revenue: stats[year].revenue,
+      notes: stats[year].notes
     }));
   }, [yields]);
 
@@ -1987,6 +2049,8 @@ function Dashboard() {
                 estimatedRevenue={estimatedRevenue}
                 formatCurrency={formatCurrency}
                 filteredYields={filteredYields}
+                totalSoldKg={totalSoldKg}
+                remainingYield={remainingYield}
               />
             )}
         </div>
@@ -2172,14 +2236,45 @@ function Dashboard() {
                   </label>
                 </div>
                 
-                <div>
-                  <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Số tiền (VNĐ)</label>
-                  <input 
-                    type="number" required placeholder="0"
-                    className={`w-full rounded-xl p-3 text-sm font-bold ${theme.inputGlass} outline-none`}
-                    value={newFinance.amount} onChange={(e) => setNewFinance({...newFinance, amount: e.target.value})}
-                  />
-                </div>
+                {newFinance.type === 'thu' && newFinance.category === 'Bán hàng' ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Số lượng bán (kg)</label>
+                        <input 
+                          type="number" required min="0" step="0.1" placeholder="0"
+                          className={`w-full rounded-xl p-3 text-sm font-bold ${theme.inputGlass} outline-none`}
+                          value={newFinance.soldWeight} onChange={(e) => setNewFinance({...newFinance, soldWeight: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Đơn giá (VNĐ/kg)</label>
+                        <input 
+                          type="number" required min="0" placeholder="0"
+                          className={`w-full rounded-xl p-3 text-sm font-bold ${theme.inputGlass} outline-none`}
+                          value={newFinance.pricePerKg} onChange={(e) => setNewFinance({...newFinance, pricePerKg: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Thành tiền (VNĐ)</label>
+                      <input 
+                        type="number" required readOnly placeholder="0"
+                        className={`w-full rounded-xl p-3 text-sm font-bold ${theme.inputGlass} outline-none bg-black/50 text-white/70 cursor-not-allowed`}
+                        value={newFinance.amount}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Số tiền (VNĐ)</label>
+                    <input 
+                      type="number" required min="0" placeholder="0"
+                      className={`w-full rounded-xl p-3 text-sm font-bold ${theme.inputGlass} outline-none`}
+                      value={newFinance.amount} onChange={(e) => setNewFinance({...newFinance, amount: e.target.value})}
+                    />
+                  </div>
+                )}
                 
                 <div>
                   <label className="block text-[10px] font-medium text-white/70 mb-1.5 uppercase tracking-wider">Nội dung</label>
@@ -2300,63 +2395,144 @@ function Dashboard() {
         {/* Yield Stats Modal */}
         {showYieldStatsModal && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className={`relative w-full max-w-[360px] ${theme.cardGlass} rounded-[28px] p-5 shadow-2xl border border-white/20 flex flex-col`}>
-              <div className="flex justify-between items-center mb-5">
+            <div className={`relative w-full max-w-[380px] ${theme.cardGlass} rounded-[28px] p-5 shadow-2xl border border-white/20 flex flex-col`}>
+              <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                   <BarChart3 className="w-4 h-4 text-orange-400" />
-                  So sánh sản lượng các năm
+                  Sản lượng & Doanh thu
                 </h3>
                 <button onClick={() => setShowYieldStatsModal(false)} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
                   <X className="w-4 h-4 text-white" />
                 </button>
               </div>
               
-              <div className="w-full h-64 mt-2">
+              <div className="w-full h-80 mt-2">
                 <Bar 
                   data={{
                     labels: yearlyYieldStats.map(s => `Năm ${s.year}`),
-                    datasets: [{
-                      label: 'Sản lượng (kg)',
-                      data: yearlyYieldStats.map(s => s.weight),
-                      backgroundColor: 'rgba(249, 115, 22, 0.8)',
-                      borderColor: 'rgba(249, 115, 22, 1)',
-                      borderWidth: 1,
-                      borderRadius: 4,
-                    }]
+                    datasets: [
+                      {
+                        type: 'bar',
+                        label: 'Sản lượng',
+                        data: yearlyYieldStats.map(s => s.weight),
+                        backgroundColor: 'rgba(249, 115, 22, 0.7)',
+                        borderColor: 'rgba(249, 115, 22, 1)',
+                        yAxisID: 'y_kg',
+                        order: 2
+                      },
+                      {
+                        type: 'line',
+                        label: 'Doanh thu',
+                        data: yearlyYieldStats.map(s => s.revenue),
+                        backgroundColor: 'rgba(74, 222, 128, 1)',
+                        borderColor: 'rgba(74, 222, 128, 1)',
+                        yAxisID: 'y_vnd',
+                        tension: 0.3,
+                        fill: false,
+                        pointBackgroundColor: 'rgba(74, 222, 128, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                        order: 1
+                      }
+                    ]
                   }}
                   options={{
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                      mode: 'index',
+                      intersect: false,
+                    },
                     plugins: {
-                      legend: { display: false },
+                      legend: { 
+                        position: 'top',
+                        labels: {
+                          color: 'rgba(255,255,255,0.8)',
+                          font: { size: 10 },
+                          usePointStyle: true,
+                        }
+                      },
                       tooltip: {
                         callbacks: {
                           label: function(context) {
-                            return ` ${context.parsed.y.toLocaleString('vi-VN')} kg`;
+                            let label = context.dataset.label || '';
+                            if (label) {
+                              label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                              if (context.dataset.yAxisID === 'y_vnd') {
+                                label += formatCurrency(context.parsed.y);
+                              } else {
+                                label += `${context.parsed.y.toLocaleString('vi-VN')} kg`;
+                              }
+                            }
+                            return label;
+                          },
+                          afterBody: function(contexts) {
+                            if (contexts && contexts.length > 0) {
+                              const dataIndex = contexts[0].dataIndex;
+                              const notes = yearlyYieldStats[dataIndex].notes;
+                              if (notes && notes.length > 0) {
+                                return ['', 'Ghi chú:', ...notes.map(n => `• ${n}`)];
+                              }
+                            }
+                            return [];
                           }
                         }
                       }
                     },
                     scales: {
-                      y: {
+                      y_kg: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
                         beginAtZero: true,
-                        grid: { color: 'rgba(255,255,255,0.1)' },
-                        ticks: { color: 'rgba(255,255,255,0.6)', font: { size: 10 } }
+                        grid: {
+                          drawOnChartArea: false,
+                        },
+                        ticks: {
+                          color: 'rgba(249, 115, 22, 1)',
+                          font: { size: 9 },
+                          callback: (value) => `${value.toLocaleString('vi-VN')} kg`
+                        },
+                        title: {
+                          display: false,
+                        }
+                      },
+                      y_vnd: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        grid: {
+                          color: 'rgba(255,255,255,0.05)'
+                        },
+                        ticks: {
+                          color: 'rgba(74, 222, 128, 1)',
+                          font: { size: 9 },
+                          callback: function(value) {
+                            if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)} tỷ`;
+                            if (value >= 1000000) return `${(value / 1000000).toFixed(0)} tr`;
+                            return '0';
+                          }
+                        },
+                        title: {
+                          display: false,
+                        }
                       },
                       x: {
                         grid: { display: false },
-                        ticks: { color: 'rgba(255,255,255,0.6)', font: { size: 10 } }
+                        ticks: { color: 'rgba(255,255,255,0.7)', font: { size: 10 } }
                       }
                     }
                   }}
                 />
               </div>
               
-              {/* Hiển thị tỷ lệ tăng giảm */}
               {yieldTrend && (
-                <div className={`mt-5 p-3 rounded-xl border flex items-center justify-between ${yieldTrend.isPositive ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                <div className={`mt-4 p-3 rounded-xl border flex items-center justify-between ${yieldTrend.isPositive ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
                   <div className="flex flex-col">
-                     <span className="text-[9px] text-white/60 uppercase tracking-wider mb-1">Năm {yieldTrend.currentYear} so với {yieldTrend.prevYear}</span>
+                     <span className="text-[9px] text-white/60 uppercase tracking-wider mb-1">Sản lượng năm {yieldTrend.currentYear} so với {yieldTrend.prevYear}</span>
                      <span className={`text-sm font-bold flex items-center gap-1.5 ${yieldTrend.isPositive ? 'text-green-400' : 'text-red-400'}`}>
                        {yieldTrend.isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                        {yieldTrend.isPositive ? 'Tăng' : 'Giảm'} {yieldTrend.percent}%

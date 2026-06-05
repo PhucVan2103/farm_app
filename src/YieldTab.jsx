@@ -13,7 +13,9 @@ export default function YieldTab({
   totalYield,
   estimatedRevenue,
   formatCurrency,
-  filteredYields
+  filteredYields,
+  totalSoldKg,
+  remainingYield
 }) {
   return (
     <div className="p-3 h-full flex flex-col pt-4">
@@ -53,17 +55,22 @@ export default function YieldTab({
         <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-yellow-500/20 rounded-full blur-2xl"></div>
          
         <div className="relative z-10 flex flex-col gap-4">
-          <div className="flex justify-between items-center">
+          <div className="grid grid-cols-3 gap-2 text-center border-b border-white/10 pb-3">
             <div>
-              <div className="text-white/80 font-medium mb-1 text-[10px] uppercase tracking-wider">Tổng sản lượng</div>
-              <div className="text-3xl font-light tracking-tighter text-white">{totalYield.toLocaleString('vi-VN')} <span className="text-sm font-medium text-white/60">kg</span></div>
+              <div className="text-white/70 font-medium mb-1 text-[9px] uppercase tracking-wider">Tổng Thu</div>
+              <div className="text-lg font-bold tracking-tighter text-white">{totalYield.toLocaleString('vi-VN')} <span className="text-xs font-medium text-white/60">kg</span></div>
             </div>
-            <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
-              <Scale className="w-6 h-6 text-orange-300" />
+            <div>
+              <div className="text-white/70 font-medium mb-1 text-[9px] uppercase tracking-wider">Đã Bán</div>
+              <div className="text-lg font-bold tracking-tighter text-yellow-300">{totalSoldKg.toLocaleString('vi-VN')} <span className="text-xs font-medium text-yellow-300/60">kg</span></div>
+            </div>
+            <div>
+              <div className="text-white/70 font-medium mb-1 text-[9px] uppercase tracking-wider">Tồn Kho</div>
+              <div className="text-lg font-bold tracking-tighter text-green-300">{remainingYield.toLocaleString('vi-VN')} <span className="text-xs font-medium text-green-300/60">kg</span></div>
             </div>
           </div>
           
-          <div className="pt-3 border-t border-white/10 flex justify-between items-end">
+          <div className="pt-1 flex justify-between items-end">
              <div>
                <div className="text-white/60 font-medium mb-1 text-[9px] uppercase tracking-wider flex items-center gap-1.5">
                  <Wallet className="w-3 h-3 text-yellow-400" /> Doanh thu ước tính
