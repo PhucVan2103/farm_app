@@ -243,7 +243,6 @@ function Dashboard() {
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingFinanceId, setEditingFinanceId] = useState(null);
-  const [editingYieldId, setEditingYieldId] = useState(null);
 
   // State cho Giao diện & Ảnh nền
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('farmAppTheme') || 'light');
@@ -2028,7 +2027,22 @@ function Dashboard() {
             {activeTab === 'knowledge' && renderKnowledge()}
             {activeTab === 'tasks' && renderTasks()}
             {activeTab === 'finance' && renderFinance()}
-            {activeTab === 'yield' && renderYield()}
+            {activeTab === 'yield' && (
+              <YieldTab 
+                theme={theme}
+                selectedYieldYear={selectedYieldYear}
+                setSelectedYieldYear={setSelectedYieldYear}
+                availableYieldYears={availableYieldYears}
+                setShowYieldStatsModal={setShowYieldStatsModal}
+                openAddYieldModal={openAddYieldModal}
+                openEditYieldModal={openEditYieldModal}
+                handleDeleteYield={handleDeleteYield}
+                totalYield={totalYield}
+                estimatedRevenue={estimatedRevenue}
+                formatCurrency={formatCurrency}
+                filteredYields={filteredYields}
+              />
+            )}
         </div>
 
         {/* Floating Bottom Navigation Bar (Glassmorphism Pill) */}
@@ -2080,8 +2094,8 @@ function Dashboard() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
             <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[95%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-green-300">Thêm công việc mới</h3>
-                <button onClick={() => setShowTaskModal(false)} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-green-300">{editingTaskId ? 'Cập nhật công việc' : 'Thêm công việc mới'}</h3>
+                <button onClick={closeTaskModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
                   <X className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -2181,7 +2195,7 @@ function Dashboard() {
                 </div>
 
                 <button type="submit" className="w-full bg-white text-green-900 font-bold py-3 rounded-xl mt-3 shadow-lg hover:bg-green-50 transition-colors text-[11px]">
-                  Lưu công việc
+                  {editingTaskId ? 'Cập nhật' : 'Lưu công việc'}
                 </button>
               </form>
             </div>
@@ -2193,8 +2207,8 @@ function Dashboard() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in duration-200">
             <div className={`${theme.modalGlass} w-full rounded-t-[32px] p-5 shadow-2xl max-h-[90%] overflow-y-auto`}>
               <div className="flex justify-between items-center mb-5">
-                <h3 className="text-sm font-bold">Giao dịch mới</h3>
-                <button onClick={() => setShowFinanceModal(false)} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
+                <h3 className="text-sm font-bold">{editingFinanceId ? 'Cập nhật giao dịch' : 'Giao dịch mới'}</h3>
+                <button onClick={closeFinanceModal} className="bg-white/10 p-1.5 rounded-full hover:bg-white/20 transition-colors">
                   <X className="w-4 h-4 text-white" />
                 </button>
               </div>
@@ -2265,7 +2279,7 @@ function Dashboard() {
                 </div>
 
                 <button type="submit" className={`w-full font-bold py-3.5 rounded-xl mt-6 shadow-lg transition-colors text-[11px] ${newFinance.type === 'thu' ? 'bg-white text-green-900 hover:bg-green-50' : 'bg-red-500 text-[#fff] hover:bg-red-600'}`}>
-                  Lưu giao dịch
+                  {editingFinanceId ? 'Cập nhật' : 'Lưu giao dịch'}
                 </button>
               </form>
             </div>
@@ -2278,7 +2292,7 @@ function Dashboard() {
             <div className={`relative w-full max-w-[360px] ${theme.cardGlass} rounded-[28px] p-5 shadow-2xl border border-white/20 flex flex-col`}>
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <BarChart3 className="w-4 h-4 text-blue-300" />
+                  <BarChart3 className="w-4 h-4 text-blue-300" /> {/* Changed from text-blue-300 to text-blue-300 */}
                   Thống kê
                   <select 
                     className="ml-1 bg-white/10 text-white text-xs px-2 py-1 rounded-lg border border-white/20 outline-none focus:border-green-400 appearance-none cursor-pointer"
