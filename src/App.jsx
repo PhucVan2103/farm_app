@@ -243,6 +243,7 @@ function Dashboard() {
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingFinanceId, setEditingFinanceId] = useState(null);
+  const [editingYieldId, setEditingYieldId] = useState(null);
 
   // State cho Giao diện & Ảnh nền
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('farmAppTheme') || 'light');
