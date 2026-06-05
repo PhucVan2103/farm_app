@@ -460,14 +460,14 @@ function Dashboard() {
     setShowTaskModal(true);
   };
 
-  const handleDeleteTask = (id) => {
+  const handleDeleteTask = async (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa công việc này?")) {
-      setTasks(tasks.filter(t => t.id !== id));
+      await deleteDoc(doc(db, "tasks", id));
       toast.success("Đã xóa công việc!");
     }
   };
 
-  const handleAddTask = (e) => {
+  const handleAddTask = async (e) => {
     e.preventDefault();
     if (!newTask.title || !newTask.date) return;
 
@@ -478,8 +478,7 @@ function Dashboard() {
     }
       
     if (editingTaskId) {
-      setTasks(tasks.map(t => t.id === editingTaskId ? {
-        ...t,
+      await updateDoc(doc(db, "tasks", editingTaskId), {
         title: newTask.title,
         category: newTask.category,
         date: newTask.date,
@@ -489,24 +488,22 @@ function Dashboard() {
         laborCount: newTask.hasLabor ? parseFloat(newTask.laborCount) : 0,
         laborPrice: newTask.hasLabor ? parseFloat(newTask.laborPrice) : 0,
         laborTotal: laborTotalCost
-      } : t));
+      });
       toast.success('Đã cập nhật công việc!');
     } else {
-      const taskId = Date.now();
       if (newTask.hasLabor && newTask.laborCount && newTask.laborPrice) {
         const newExpense = {
-          id: taskId + 1,
           type: 'chi',
           amount: laborTotalCost,
           note: `Tiền công: ${newTask.title}`,
           date: newTask.date,
-          category: 'Nhân công'
+          category: 'Nhân công',
+          createdAt: Date.now()
         };
-        setFinances(prevFinances => [newExpense, ...prevFinances]);
+        await addDoc(collection(db, "finances"), newExpense);
       }
 
       const createdTask = {
-        id: taskId,
         title: newTask.title,
         category: newTask.category,
         date: newTask.date,
@@ -516,9 +513,10 @@ function Dashboard() {
         hasLabor: newTask.hasLabor,
         laborCount: newTask.hasLabor ? parseFloat(newTask.laborCount) : 0,
         laborPrice: newTask.hasLabor ? parseFloat(newTask.laborPrice) : 0,
-        laborTotal: laborTotalCost
+        laborTotal: laborTotalCost,
+        createdAt: Date.now()
       };
-      setTasks([createdTask, ...tasks]);
+      await addDoc(collection(db, "tasks"), createdTask);
       toast.success('Đã thêm công việc mới!');
     }
     
