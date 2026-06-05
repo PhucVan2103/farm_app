@@ -46,13 +46,17 @@ import {
   Trash2
 } from 'lucide-react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js';
-import { Doughnut, Bar } from 'react-chartjs-2';
+import { Bar } from 'react-chartjs-2';
 import { messaging } from './firebase';
 import { getToken, onMessage } from 'firebase/messaging';
 import toast, { Toaster } from 'react-hot-toast';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 import { db } from "./firebase";
 import YieldTab from './YieldTab';
+import HomeTab from './HomeTab';
+import KnowledgeTab from './KnowledgeTab';
+import TasksTab from './TasksTab';
+import FinanceTab from './FinanceTab';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement);
 
@@ -829,24 +833,6 @@ function Dashboard() {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
   };
 
-  const getCategoryIcon = (category) => {
-    switch(category) {
-      case 'Tưới nước': return <Droplet className="w-3.5 h-3.5 text-blue-300" />;
-      case 'Bón phân': return <Leaf className="w-3.5 h-3.5 text-green-300" />;
-      case 'Làm cành': return <Scissors className="w-3.5 h-3.5 text-orange-300" />;
-      default: return <Circle className="w-3.5 h-3.5 text-white/50" />;
-    }
-  };
-
-  const renderWeatherIcon = (type, className) => {
-    switch(type) {
-      case 'sun': return <Sun className={`${className} text-yellow-300`} />;
-      case 'rain': return <CloudRain className={`${className} text-blue-300`} />;
-      case 'cloud': return <Cloud className={`${className} text-white/90`} />;
-      default: return themeMode === 'light' ? <CloudSun className={`${className} text-yellow-100`} /> : <Moon className={`${className} text-indigo-300`} />;
-    }
-  };
-
   // Memoize để tối ưu hiệu suất render thay vì tính toán lại mỗi lần chuyển tab/nhập form
   const pendingTasks = useMemo(() => tasks.filter(t => t.status === 'pending'), [tasks]);
   
@@ -1105,46 +1091,6 @@ function Dashboard() {
     await executeFetch();
   };
 
-  const renderFormattedAiText = (text) => {
-    if (!text) return null;
-    const lines = text.split('\n');
-    return lines.map((line, idx) => {
-      const cleanLine = line.trim();
-      if (!cleanLine) return <div key={idx} className="h-2" />;
-
-      if (cleanLine.startsWith('###') || cleanLine.startsWith('##') || cleanLine.startsWith('#')) {
-        const titleText = cleanLine.replace(/^[#\s]+/, '');
-        return (
-          <h4 key={idx} className="text-xs font-bold text-green-300 mt-3 mb-1.5 uppercase tracking-wider flex items-center gap-1">
-            <BookOpenCheck className="w-3.5 h-3.5 text-green-400" />
-            {titleText}
-          </h4>
-        );
-      }
-
-      if (cleanLine.startsWith('-') || cleanLine.startsWith('*')) {
-        const bulletText = cleanLine.replace(/^[-*\s]+/, '');
-        return (
-          <div key={idx} className="flex items-start gap-2 my-1 text-[10px] text-white/90 leading-relaxed">
-            <span className="text-green-400 mt-1 shrink-0">🌿</span>
-            <span>{parseBoldText(bulletText)}</span>
-          </div>
-        );
-      }
-
-      return (
-        <p key={idx} className="text-[10px] text-white/80 leading-relaxed my-1">
-          {parseBoldText(cleanLine)}
-        </p>
-      );
-    });
-  };
-
-  const parseBoldText = (text) => {
-    const parts = text.split(/\*\*([\s\S]*?)\*\*/g);
-    return parts.map((part, i) => i % 2 === 1 ? <strong key={i} className="text-white font-bold">{part}</strong> : part);
-  };
-
   const renderSettingsModal = () => (
     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className={`relative w-full max-w-[320px] ${theme.cardGlass} rounded-3xl p-5 shadow-2xl border border-white/20 flex flex-col`}>
@@ -1270,757 +1216,6 @@ function Dashboard() {
     </div>
   );
 
-  const renderHome = () => (
-    <div className="p-3 space-y-4 pt-4">
-      {/* Top Header */}
-      <div className="flex justify-between items-center px-2 mb-3 mt-1">
-        <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg border border-white/10 shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-green-400/50 transition-all" onClick={() => setShowSettingsModal(true)} title="Đổi ảnh đại diện">
-               {customAvatar ? (
-                 <img src={customAvatar} alt="Avatar" className="w-full h-full object-cover" />
-               ) : (
-                 <span className="text-[#fff] font-bold text-sm shadow-sm">{userName ? userName.charAt(0).toUpperCase() : '👤'}</span>
-               )}
-            </div>
-           <div className="flex flex-col">
-              <span className="text-[10px] text-white/60 font-medium mb-0.5 uppercase tracking-wider">Xin chào,</span>
-              <span className="text-base font-bold text-white flex items-center gap-1.5 leading-none">
-                {userName || 'Chủ vườn'} <span className="text-sm">👋</span>
-              </span>
-           </div>
-        </div>
-        <div className="flex gap-2.5">
-           <button 
-              onClick={() => setShowNotifications(true)}
-              className={`relative w-9 h-9 rounded-full ${theme.cardGlass} flex items-center justify-center hover:bg-white/20 transition-colors`}
-              title="Thông báo"
-           >
-              <Bell className="w-4 h-4 text-white" />
-              {upcomingNotifications.length > 0 && (
-                <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-slate-900"></span>
-              )}
-           </button>
-           <button 
-              onClick={handleThemeToggle}
-              className={`w-9 h-9 rounded-full ${theme.cardGlass} flex items-center justify-center hover:bg-white/20 transition-colors`}
-              title={themeMode === 'light' ? 'Chuyển sang chế độ tối' : 'Chuyển sang chế độ sáng'}
-           >{themeMode === 'light' ? <Moon className="w-4 h-4 text-white" /> : <Sun className="w-4 h-4 text-yellow-300" />}</button>
-           <button 
-              onClick={() => setShowSettingsModal(true)}
-              className={`w-9 h-9 rounded-full ${theme.cardGlass} flex items-center justify-center hover:bg-white/20 transition-colors`}
-              title="Cài đặt"
-           >
-              <Settings className="w-4 h-4 text-white" />
-           </button>
-        </div>
-      </div>
-
-      {/* Cụm Thông tin: Thời tiết & Diện tích vườn */}
-      <div className="grid grid-cols-2 gap-3 px-1">
-        {/* Weather Widget Glass */}
-        <div className={`rounded-[24px] p-4 flex flex-col justify-between transition-all ${theme.cardGlass}`}>
-          <div className="flex items-center gap-1.5 text-[10px] text-white/80 mb-3">
-            <MapPin className="w-3.5 h-3.5 text-red-400" />
-            <span className="font-medium truncate">{weather.location}</span>
-          </div>
-          <div className="flex items-center justify-between my-1">
-            <div className="flex flex-col">
-              <div className="text-3xl font-light text-white tracking-tighter relative inline-block">
-                 {weather.temp}<span className="text-lg absolute top-0 text-white/60">°</span>
-              </div>
-              <div className="text-[10px] font-medium text-white/80 mt-1 uppercase tracking-wider">{themeMode === 'light' ? 'Nắng nhẹ' : 'Quang mây'}</div>
-            </div>
-            {themeMode === 'light' ? <CloudSun className="w-10 h-10 drop-shadow-lg text-yellow-300" /> : <CloudMoon className="w-10 h-10 drop-shadow-lg text-indigo-300" />}
-          </div>
-          
-          <div className={`mt-4 pt-3 border-t border-white/10 flex justify-between text-[10px] font-medium text-white/90`}>
-              <div className="flex items-center gap-1.5">
-                <Wind className="w-3.5 h-3.5 text-blue-300" /> <span>{weather.windSpeed} km/h</span>
-              </div>
-               <div className="flex items-center gap-1.5">
-                <Droplet className="w-3.5 h-3.5 text-blue-300" /> <span>{weather.humidity}%</span>
-              </div>
-          </div>
-        </div>
-
-        {/* Header Stats Glass */}
-        <div className={`rounded-[24px] p-4 relative overflow-hidden flex flex-col justify-between transition-colors ${theme.cardGlassActive}`}>
-          <div className="absolute -bottom-6 -right-4 p-1 opacity-20">
-            <Leaf className="w-24 h-24 text-white" />
-          </div>
-          <div className="relative z-10 mb-2">
-            <div className="flex items-center gap-1.5 text-[10px] font-medium text-white/90 mb-2">
-               <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
-                 <Leaf className="w-3 h-3 text-white" />
-               </div>
-               Tổng diện tích
-            </div>
-            <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70 tracking-tight">
-              1,100 <span className="text-[10px] font-normal text-white/60">cây</span>
-            </div>
-          </div>
-          
-          <div className="flex gap-2 relative z-10 mt-auto pt-3 border-t border-white/10">
-             <div className="flex-1 flex flex-col items-center">
-                <span className="text-white/60 text-[9px] font-medium uppercase tracking-wider mb-0.5">Hàng</span>
-                <span className="font-bold text-sm text-white">63</span>
-             </div>
-             <div className="w-[1px] bg-white/20 my-1"></div>
-             <div className="flex-1 flex flex-col items-center">
-                <span className="text-white/60 text-[9px] font-medium uppercase tracking-wider mb-0.5">Cây/hàng</span>
-                <span className="font-bold text-sm text-white">14</span>
-             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 7-Day Forecast Glass */}
-      <div className="px-1">
-        <div className={`rounded-[24px] p-4 overflow-hidden transition-all duration-300 ${theme.cardGlass}`}>
-          <div className="flex items-center justify-between mb-4">
-             <h3 className={`text-xs font-bold text-white flex items-center gap-1.5`}>
-               <CalendarIcon className="w-4 h-4 text-blue-300" />
-               Dự báo 7 ngày tới
-             </h3>
-          </div>
-          <div className="flex justify-between items-center gap-1 w-full pb-1">
-            {forecast7Days.map((day, idx) => (
-              <div key={idx} className={`flex-1 flex flex-col items-center justify-center py-2.5 px-0.5 rounded-[14px] transition-colors ${idx === 0 ? 'bg-white/25 border border-white/30 shadow-sm' : theme.itemGlass} `}>
-                <span className={`text-[9px] font-medium mb-1.5 ${idx === 0 ? 'text-white font-bold' : 'text-white/70'}`}>{day.day}</span>
-                {renderWeatherIcon(day.icon, "w-4 h-4 mb-1.5 drop-shadow-sm")}
-                <span className={`text-[10px] font-bold text-white`}>{day.temp}°</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Lời khuyên nông vụ Glass */}
-      <div className="px-1">
-        <div className={`p-4 rounded-[24px] ${theme.cardGlass} border-l-[6px] border-l-yellow-400 relative overflow-hidden`}>
-          <div className="absolute -right-4 -top-4 opacity-10">
-             <Lightbulb className="w-20 h-20 text-yellow-400" />
-          </div>
-          <div className="flex gap-3 items-start relative z-10">
-            <div className={`bg-gradient-to-br from-yellow-300 to-yellow-500 p-2.5 rounded-full shadow-[0_0_15px_rgba(253,224,71,0.4)] shrink-0 animate-pulse`}>
-              <Lightbulb className="w-4 h-4 text-yellow-950" />
-            </div>
-            <div className={`text-[11px] leading-relaxed text-white/90`}>
-              <span className={`font-bold text-yellow-400 block mb-1 text-xs uppercase tracking-wider`}>Gợi ý nông vụ</span>
-              Dự báo có mưa rào nhẹ vào Thứ 4 và Thứ 5. Khuyến nghị <strong className="text-white">ngưng tưới nước</strong>. Tiến hành <strong className="text-white">bón phân NPK</strong> đón mưa để rễ hấp thụ tốt nhất.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Báo cáo nhanh (Swipeable Carousel) */}
-      <div className="px-1 mt-2">
-        <h3 className={`text-xs font-bold text-white flex items-center gap-1.5 mb-3`}>
-          <BarChart3 className="w-4 h-4 text-blue-300" />
-          Báo cáo tháng {currentMonthTaskStats.month}
-        </h3>
-        <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-none snap-x snap-mandatory">
-          
-          {/* Thẻ 1: Tiến độ công việc */}
-          <div className={`min-w-[88%] snap-center shrink-0 ${theme.cardGlass} p-4 rounded-[24px] border border-white/5 flex flex-col justify-between`}>
-            <div>
-              <div className="flex justify-between items-end mb-3">
-                <span className="text-[10px] font-medium text-white/60 uppercase tracking-wider">Tiến độ công việc</span>
-                <div className="flex items-center gap-2">
-                   <span className="text-[10px] text-white/50">{currentMonthTaskStats.completed}/{currentMonthTaskStats.total} xong</span>
-                   <span className="text-xs font-bold text-green-400">{currentMonthTaskStats.rate}%</span>
-                </div>
-              </div>
-              <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden shadow-inner mb-3">
-                <div 
-                  className="bg-gradient-to-r from-green-500 to-emerald-400 h-full rounded-full transition-all duration-1000 ease-out" 
-                  style={{ width: `${currentMonthTaskStats.rate}%` }}
-                ></div>
-              </div>
-            </div>
-            {currentMonthTaskStats.totalLaborDays > 0 ? (
-              <div className="pt-3 border-t border-white/10 flex flex-col gap-2">
-                 <div className="flex justify-between items-center">
-                   <span className="text-[9px] text-white/60 uppercase tracking-wider font-medium flex items-center gap-1.5">👷‍♂️ Nhân công</span>
-                   <span className="text-[10px] font-bold text-yellow-300 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/20">{currentMonthTaskStats.totalLaborDays} công</span>
-                 </div>
-                 <div className="flex justify-between items-center bg-black/20 p-2 rounded-xl border border-white/5 mt-0.5">
-                    <div className="flex flex-col">
-                      <span className="text-[8px] text-white/50 uppercase tracking-wider mb-0.5">Đã trả</span>
-                      <span className="text-[10px] font-bold text-green-400">{formatCurrency(currentMonthTaskStats.paidLaborCost)}</span>
-                    </div>
-                    <div className="w-[1px] h-6 bg-white/10"></div>
-                    <div className="flex flex-col items-end">
-                      <span className="text-[8px] text-white/50 uppercase tracking-wider mb-0.5">Còn nợ</span>
-                      <span className="text-[10px] font-bold text-red-400">{formatCurrency(currentMonthTaskStats.unpaidLaborCost)}</span>
-                    </div>
-                 </div>
-              </div>
-            ) : (
-              <div className="pt-2 text-[9px] text-white/40 italic text-center">Không phát sinh thuê mướn</div>
-            )}
-          </div>
-          
-          {/* Thẻ 2: Tổng Chi Phí Dự Tính */}
-          <div className={`min-w-[88%] snap-center shrink-0 ${theme.cardGlass} p-4 rounded-[24px] border border-red-500/10 bg-gradient-to-br from-red-500/5 to-transparent flex flex-col justify-between`}>
-             <div className="flex justify-between items-start mb-4">
-               <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider flex items-center gap-1.5">
-                 <Wallet className="w-4 h-4 text-red-400" /> 
-                 Tổng chi dự kiến
-               </span>
-               <span className="text-sm font-bold text-red-400 bg-red-500/10 px-2 py-1 rounded-lg border border-red-500/20">
-                 {formatCurrency(currentMonthExpenseStats.total)}
-               </span>
-             </div>
-             
-             <div className="flex justify-between items-center bg-black/20 p-3 rounded-xl border border-white/5">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[9px] text-white/50 uppercase tracking-wider">Đã chi (Thực tế)</span>
-                  <span className="text-[11px] font-bold text-white">{formatCurrency(currentMonthExpenseStats.actual)}</span>
-                </div>
-                <div className="w-[1px] h-8 bg-white/10"></div>
-                <div className="flex flex-col gap-1 items-end">
-                  <span className="text-[9px] text-white/50 uppercase tracking-wider">Sẽ chi (Nợ)</span>
-                  <span className="text-[11px] font-bold text-yellow-300">{formatCurrency(currentMonthExpenseStats.pending)}</span>
-                </div>
-             </div>
-          </div>
-          
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderKnowledge = () => (
-    <div className="p-3 h-full flex flex-col pt-4">
-      {/* Header */}
-      <div className="flex items-center gap-1.5 mb-4 flex-shrink-0 px-1">
-        <Sparkles className="w-4 h-4 text-yellow-300" />
-        <h2 className="text-sm font-bold text-white">Chuyên Gia Cà Phê AI</h2>
-      </div>
-
-      {/* Main Content Area (Scrollable) */}
-      <div className="flex-1 overflow-y-auto pr-1 pb-4 space-y-4">
-        {/* Initial State */}
-        {!isLoadingAi && !aiResponse && !aiError && (
-          <div className="flex flex-col h-full animate-fadeIn justify-center">
-            <div className={`${theme.cardGlass} p-5 rounded-3xl text-center mb-4 border border-green-500/20`}>
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-lg border-4 border-white/10 mb-3">
-                <Sparkles className="w-8 h-8 text-[#fff]" />
-              </div>
-              <h3 className="font-bold text-white text-sm mb-1">Xin chào, tôi là Gemini!</h3>
-              <p className="text-[10px] text-white/80 leading-relaxed">
-                Hãy hỏi tôi bất cứ điều gì về kỹ thuật canh tác, sâu bệnh hại, hoặc giá cả thị trường cà phê Robusta tại Tây Nguyên.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <span className="text-[9px] text-white/50 font-bold uppercase tracking-wider block px-1">💡 Hoặc thử các gợi ý sau:</span>
-              {suggestedQuestions.map((q, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setSearchQuery(q);
-                    handleAiSearch(q);
-                  }}
-                  className={`w-full text-left p-2.5 rounded-xl ${theme.itemGlass} hover:bg-white/20 text-[10px] text-white/90 font-medium transition-all flex items-center justify-between border border-white/10`}
-                >
-                  <span className="truncate">{q}</span>
-                  <PlayCircle className="w-4 h-4 text-green-300 shrink-0 ml-2" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {isLoadingAi && (
-          <div className={`p-5 rounded-3xl ${theme.cardGlass} flex flex-col items-center justify-center gap-3 border border-green-400/20 shadow-xl min-h-[160px] animate-pulse`}>
-            <div className="relative">
-              <Loader2 className="w-8 h-8 text-green-400 animate-spin" />
-              <Sparkles className="w-4 h-4 text-yellow-300 absolute -top-1 -right-1 animate-bounce" />
-            </div>
-            <div className="text-center">
-              <p className="text-[10px] text-green-300 font-bold">Chuyên gia Gemini đang phân tích...</p>
-              <p className="text-[8px] text-white/60 mt-0.5">Sử dụng Google Search để lấy kiến thức nông học thực tế Chư Prông</p>
-            </div>
-          </div>
-        )}
-
-        {/* Error State */}
-        {aiError && !isLoadingAi && (
-          <div className={`p-4 rounded-3xl bg-red-950/40 border border-red-500/30 text-white/90 text-[10px] ${theme.cardGlass}`}>
-            <p className="font-bold text-red-300 mb-1 flex items-center gap-1">⚠️ Lỗi kết nối trợ lý</p>
-            <p>{aiError}</p>
-            <button 
-              onClick={() => handleAiSearch()}
-              className="mt-3 bg-white/10 hover:bg-white/20 text-white rounded-lg p-1.5 px-3 text-[9px] font-bold"
-            >
-              Thử lại
-            </button>
-          </div>
-        )}
-
-        {/* AI Response */}
-        {aiResponse && !isLoadingAi && (
-          <div className={`p-4 rounded-3xl ${theme.cardGlass} border border-green-400/20 shadow-xl space-y-3 animate-fadeIn`}>
-            <div className="flex justify-between items-center border-b border-white/10 pb-2">
-              <div className="flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-yellow-300" />
-                <span className="text-[10px] font-bold text-green-300">Tư vấn của Gemini AI</span>
-              </div>
-              <button 
-                onClick={() => {
-                  setAiResponse(null);
-                  setSearchQuery('');
-                  setAiError('');
-                }}
-                className="text-white/50 hover:text-white bg-white/10 p-1.5 rounded-full transition-all flex items-center gap-1 text-[8px] px-2"
-              >
-                <Plus className="w-3 h-3 rotate-45" /> Mới
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              {renderFormattedAiText(aiResponse.text)}
-            </div>
-
-            {aiResponse?.sources?.length > 0 && (
-              <div className="border-t border-white/10 pt-3 mt-2">
-                <span className="text-[8px] text-white/50 font-bold uppercase tracking-wider block mb-1.5">🔍 Nguồn kiểm chứng uy tín:</span>
-                <div className="flex flex-wrap gap-1">
-                  {aiResponse.sources.map((src, i) => (
-                    <a 
-                      key={i} 
-                      href={src.uri} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 bg-white/5 hover:bg-white/15 border border-white/10 rounded-full px-2 py-1 text-[8px] text-green-300 transition-all font-medium truncate max-w-[150px]"
-                    >
-                      <ExternalLink className="w-2.5 h-2.5 text-white/50 shrink-0" />
-                      <span className="truncate">{src.title}</span>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Fixed Input Area */}
-      <div className="mt-auto pt-3 flex-shrink-0">
-        <div className={`flex items-center p-2 rounded-2xl ${theme.inputGlass} focus-within:ring-1 focus-within:ring-green-400/50 transition-all`}>
-          <input 
-            type="text" 
-            placeholder="Hỏi chuyên gia AI..." 
-            className="bg-transparent border-none outline-none text-[11px] text-white w-full placeholder:text-white/40 focus:ring-0 px-2"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
-          />
-          <button 
-            onClick={() => handleAiSearch()}
-            disabled={isLoadingAi || !searchQuery?.trim()}
-            className="bg-green-500 hover:bg-green-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-[#fff] rounded-xl p-2.5 text-[9px] font-bold transition-all flex items-center justify-center shrink-0 shadow-lg"
-          >
-            {isLoadingAi ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderTasks = () => (
-    <div className="p-3 h-full flex flex-col pt-4">
-      <div className="flex flex-col mb-4 flex-shrink-0 gap-4">
-        <div className="flex justify-between items-center px-1">
-          <h2 className="text-sm font-bold text-white">Công việc</h2>
-          
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setTaskViewMode(taskViewMode === 'list' ? 'calendar' : 'list')}
-              className={`w-8 h-8 rounded-full ${theme.cardGlass} flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 text-white border border-white/20`}
-              title={taskViewMode === 'list' ? 'Chuyển sang xem dạng Lịch' : 'Chuyển sang xem dạng Danh sách'}
-            >
-              {taskViewMode === 'list' ? (
-                <CalendarIcon className="w-4 h-4 text-green-300" />
-              ) : (
-                <List className="w-4 h-4 text-green-300" />
-              )}
-            </button>
-
-            <button 
-              onClick={() => setShowTaskModal(true)}
-              className="w-8 h-8 rounded-full bg-white text-green-900 flex items-center justify-center shadow-lg hover:bg-green-50 transition-all duration-300 hover:scale-105 active:scale-95"
-            >
-              <Plus className="w-4 h-4 font-bold" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pr-1 pb-4">
-        {taskViewMode === 'list' ? (
-          <div className="space-y-5">
-            <div>
-              <h3 className={`font-semibold text-white/60 text-[9px] tracking-widest uppercase mb-3 px-1`}>Đang thực hiện</h3>
-              <div className="space-y-2">
-                {pendingTasks.map(task => (
-                  <div 
-                    key={task.id} 
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, task.id)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, task.id)}
-                    onDragEnd={handleDragEnd}
-                    className={`${theme.cardGlass} p-3 rounded-2xl flex flex-col gap-1.5 transition-all hover:bg-white/20 border ${draggedTaskId === task.id ? 'opacity-40 border-green-500 border-dashed scale-[0.98]' : 'border-transparent'} cursor-grab active:cursor-grabbing`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`${theme.itemGlass} p-2.5 rounded-xl flex-shrink-0`}>
-                        {getCategoryIcon(task.category)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className={`font-semibold text-white text-[11px] mb-1`}>{task.title}</h4>
-                        <div className={`text-[9px] text-white/60 flex items-center gap-1.5`}>
-                          <span>{task.rows}</span>
-                          <span className="w-1 h-1 rounded-full bg-white/30"></span>
-                          <span className={new Date(task.date) < new Date() ? 'text-red-300 font-semibold' : ''}>{task.date}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button onClick={(e) => { e.stopPropagation(); openEditTaskModal(task); }} className="p-1.5 text-white/40 hover:text-blue-400 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-1.5 text-white/40 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); toggleTaskStatus(task.id); }} className="flex-shrink-0 p-1.5">
-                          <Circle className={`w-4 h-4 text-white/30 hover:text-green-400 transition-colors`} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Note & Labor Area */}
-                    {(task.note || task.hasLabor) && (
-                      <div className="border-t border-white/5 pt-1.5 mt-0.5 flex flex-col gap-1">
-                        {task.note && (
-                          <p className="text-[9px] text-white/50 italic leading-tight pl-1">
-                            ✏️ {task.note}
-                          </p>
-                        )}
-                        {task.hasLabor && (
-                          <div className="flex items-center justify-between text-[8px] bg-black/20 px-2 py-1 rounded-lg border border-white/5">
-                            <span className="text-white/60">👥 Thuê: <strong className="text-white">{task.laborCount} công</strong></span>
-                            <span className="text-red-300 font-bold">-{formatCurrency(task.laborTotal)} (Đã trừ vào Thu Chi)</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className={`font-semibold text-white/60 text-[9px] tracking-widest uppercase mb-3 px-1`}>Đã hoàn thành</h3>
-              <div className="space-y-2">
-                {completedTasks.map(task => (
-                  <div key={task.id} className={`bg-white/5 backdrop-blur-sm border border-white/10 p-3 rounded-2xl flex flex-col gap-1.5 transition-colors opacity-70`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`bg-white/5 p-2.5 rounded-xl flex-shrink-0`}>
-                        {getCategoryIcon(task.category)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className={`font-medium text-white/70 text-[11px] line-through mb-1`}>{task.title}</h4>
-                        <div className={`text-[9px] text-white/50`}>Hoàn thành: {task.date}</div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button onClick={(e) => { e.stopPropagation(); openEditTaskModal(task); }} className="p-1.5 text-white/40 hover:text-blue-400 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-1.5 text-white/40 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); toggleTaskStatus(task.id); }} className="flex-shrink-0 p-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-green-400" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Completed Note & Labor */}
-                    {(task.note || task.hasLabor) && (
-                      <div className="border-t border-white/5 pt-1.5 mt-0.5 flex flex-col gap-1">
-                        {task.note && (
-                          <p className="text-[9px] text-white/40 italic leading-tight pl-1">
-                            ✏️ {task.note}
-                          </p>
-                        )}
-                        {task.hasLabor && (
-                          <div className="flex items-center justify-between text-[8px] bg-black/10 px-2 py-1 rounded-lg">
-                            <span className="text-white/40">👥 Thuê: {task.laborCount} công</span>
-                            <span className="text-white/40 line-through">-{formatCurrency(task.laborTotal)}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="pb-4">
-            <div className={`${theme.cardGlass} rounded-3xl p-4 mb-4`}>
-              <div className="flex justify-between items-center mb-4">
-                <button onClick={prevMonth} className={`p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors`}><ChevronLeft className="w-4 h-4" /></button>
-                <div className={`font-bold text-xs text-white uppercase tracking-wider`}>
-                  Tháng {currentMonth.getMonth() + 1}, {currentMonth.getFullYear()}
-                </div>
-                <button onClick={nextMonth} className={`p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors`}><ChevronRight className="w-4 h-4" /></button>
-              </div>
-              
-              <div className="grid grid-cols-7 mb-2">
-                {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(d => (
-                  <div key={d} className={`text-center text-[9px] font-semibold text-white/60 mb-1`}>{d}</div>
-                ))}
-              </div>
-              
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((item, idx) => (
-                  <div 
-                    key={idx} 
-                    onClick={() => item.date && setSelectedDate(new Date(item.date))}
-                    className={`
-                      aspect-square flex flex-col items-center justify-center rounded-xl cursor-pointer relative transition-all
-                      ${!item.isCurrentMonth ? 'invisible' : ''}
-                      ${item.date === formatDate(selectedDate) 
-                        ? 'bg-white text-green-900 shadow-md font-bold' 
-                        : (item.date === formatDate(new Date('2026-06-03')) 
-                            ? 'bg-green-500/40 text-[#fff] font-bold border border-green-400/50' 
-                            : `hover:bg-white/20 text-white`)}
-                    `}
-                  >
-                    <span className="text-[11px]">{item.day}</span>
-                    {item.hasTask && (
-                      <span className={`w-1 h-1 rounded-full mt-1 ${item.date === formatDate(selectedDate) ? 'bg-green-600' : 'bg-green-300'}`}></span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className={`font-semibold text-[10px] text-white/80 uppercase tracking-wider mb-3 px-1`}>
-                Ngày {selectedDate.getDate()}/{selectedDate.getMonth() + 1}
-              </h3>
-              <div className="space-y-2">
-                {selectedDateTasks.length > 0 ? (
-                  selectedDateTasks.map(task => (
-                    <div key={task.id} className={`${theme.cardGlass} p-3 rounded-2xl flex flex-col gap-1.5`}>
-                       <div className="flex items-center gap-3">
-                         <div className={`${theme.itemGlass} p-2 rounded-xl flex-shrink-0`}>
-                            {getCategoryIcon(task.category)}
-                         </div>
-                         <div className="flex-1">
-                            <h4 className={`font-medium text-[11px] text-white`}>{task.title}</h4>
-                            <span className={`text-[9px] text-white/60`}>{task.rows}</span>
-                         </div>
-                         <div className="flex items-center gap-1 flex-shrink-0">
-                            <button onClick={(e) => { e.stopPropagation(); openEditTaskModal(task); }} className="p-1 text-white/40 hover:text-blue-400 transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                            <button onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }} className="p-1 text-white/40 hover:text-red-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                         </div>
-                       </div>
-                       
-                       {/* Note & Labor in Calendar List */}
-                       {(task.note || task.hasLabor) && (
-                         <div className="border-t border-white/5 pt-1.5 mt-0.5 flex flex-col gap-1">
-                           {task.note && (
-                             <p className="text-[9px] text-white/50 italic pl-1 leading-tight">
-                               ✏️ {task.note}
-                             </p>
-                           )}
-                           {task.hasLabor && (
-                             <div className="flex items-center justify-between text-[8px] bg-black/20 px-2 py-0.5 rounded-lg">
-                               <span className="text-white/60">👥 Thuê: {task.laborCount} công</span>
-                               <span className="text-red-300 font-bold">-{formatCurrency(task.laborTotal)}</span>
-                             </div>
-                           )}
-                         </div>
-                       )}
-                    </div>
-                  ))
-                ) : (
-                  <div className={`text-center py-8 text-white/50 text-[10px] bg-white/5 rounded-2xl border border-dashed border-white/20`}>
-                    Trống lịch. Không có công việc nào.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderFinance = () => {
-    const doughnutData = {
-      labels: ['Tổng Thu', 'Tổng Chi'],
-      datasets: [
-        {
-          data: [financeStats.thu, financeStats.chi],
-          backgroundColor: ['rgba(74, 222, 128, 0.8)', 'rgba(248, 113, 113, 0.8)'],
-          borderColor: ['rgba(74, 222, 128, 1)', 'rgba(248, 113, 113, 1)'],
-          borderWidth: 0,
-          hoverOffset: 4
-        },
-      ],
-    };
-
-    const doughnutOptions = {
-      cutout: '75%',
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              return ` ${context.label}: ${formatCurrency(context.parsed)}`;
-            }
-          }
-        }
-      }
-    };
-
-    return (
-    <div className="p-3 h-full flex flex-col pt-4">
-      <div className="flex justify-between items-center mb-5 flex-shrink-0 px-1">
-        <h2 className={`text-sm font-bold text-white`}>Sổ Thu Chi</h2>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setShowFinanceStatsModal(true)}
-            className="bg-white/10 text-white rounded-full p-2 hover:bg-white/20 transition-colors shadow-lg"
-            title="Thống kê"
-          >
-            <BarChart3 className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={openAddFinanceModal}
-            className="bg-white text-green-900 rounded-full shadow-lg hover:bg-green-50 transition-colors flex items-center gap-1.5 px-3 py-2"
-          >
-            <Plus className="w-3.5 h-3.5" /> <span className="text-[10px] font-bold">Giao dịch</span>
-          </button>
-        </div>
-      </div>
-
-      <div className={`${theme.cardGlassActive} rounded-3xl p-5 mb-5 flex-shrink-0 relative overflow-hidden`}>
-         <div className="absolute -top-10 -right-10 w-32 h-32 bg-green-400/20 rounded-full blur-2xl"></div>
-         <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-blue-400/20 rounded-full blur-2xl"></div>
-         
-        <div className="relative z-10">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <div className="text-white/80 font-medium mb-1 text-[10px] uppercase tracking-wider">Số dư {displayMonthStr}</div>
-              <div className="text-3xl font-light tracking-tighter text-white">{formatCurrency(financeStats.balance)}</div>
-            </div>
-            <div className="w-[72px] h-[72px] shrink-0 relative drop-shadow-xl">
-               {(financeStats.thu > 0 || financeStats.chi > 0) ? (
-                 <Doughnut data={doughnutData} options={doughnutOptions} />
-               ) : (
-                 <div className="w-full h-full rounded-full border-[4px] border-white/10 flex items-center justify-center">
-                    <Wallet className="w-6 h-6 text-white/20" />
-                 </div>
-               )}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/20">
-            <div>
-              <div className="text-white/60 text-[9px] flex items-center gap-1 mb-1 uppercase tracking-wider font-semibold"><ArrowUpRight className="w-3 h-3 text-green-400" /> Thu</div>
-              <div className="font-semibold text-xs text-white">{formatCurrency(financeStats.thu)}</div>
-            </div>
-            <div>
-              <div className="text-white/60 text-[9px] flex items-center gap-1 mb-1 uppercase tracking-wider font-semibold"><ArrowDownRight className="w-3 h-3 text-red-400" /> Chi</div>
-              <div className="font-semibold text-xs text-white">{formatCurrency(financeStats.chi)}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pr-1 pb-4">
-        <div className="flex justify-between items-center mb-3 px-1">
-          <h3 className={`font-semibold text-white/60 text-[9px] tracking-widest uppercase`}>Lịch sử giao dịch</h3>
-          <select 
-            className="bg-white/10 text-white text-[9px] px-2 py-1 rounded-lg border border-white/20 outline-none focus:border-green-400 appearance-none cursor-pointer"
-            value={selectedHistoryMonth}
-            onChange={(e) => setSelectedHistoryMonth(e.target.value)}
-          >
-            <option value="all" className="bg-slate-900 text-white">Tất cả các tháng</option>
-            {availableHistoryMonths.map(month => {
-              const [year, m] = month.split('-');
-              return <option key={month} value={month} className="bg-slate-900 text-white">Tháng {m}/{year}</option>;
-            })}
-          </select>
-        </div>
-        
-        {/* Bộ lọc Thu / Chi */}
-        <div className="flex bg-black/20 p-1 rounded-xl mb-3 border border-white/5 mx-1">
-          <button 
-            onClick={() => setSelectedFinanceType('all')} 
-            className={`flex-1 text-[10px] py-1.5 rounded-lg transition-all ${selectedFinanceType === 'all' ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/50 hover:text-white'}`}
-          >Tất cả</button>
-          <button 
-            onClick={() => setSelectedFinanceType('thu')} 
-            className={`flex-1 text-[10px] py-1.5 rounded-lg transition-all ${selectedFinanceType === 'thu' ? 'bg-green-500/30 text-green-300 font-bold shadow-sm' : 'text-white/50 hover:text-white'}`}
-          >Chỉ Thu</button>
-          <button 
-            onClick={() => setSelectedFinanceType('chi')} 
-            className={`flex-1 text-[10px] py-1.5 rounded-lg transition-all ${selectedFinanceType === 'chi' ? 'bg-red-500/30 text-red-300 font-bold shadow-sm' : 'text-white/50 hover:text-white'}`}
-          >Chỉ Chi</button>
-        </div>
-
-        {/* Thanh tìm kiếm giao dịch */}
-        <div className={`flex items-center p-2 rounded-xl mb-3 mx-1 ${theme.inputGlass} focus-within:ring-1 focus-within:ring-green-400/50 transition-all`}>
-          <Search className="w-3.5 h-3.5 text-white/50 ml-1 mr-2 shrink-0" />
-          <input 
-            type="text" 
-            placeholder="Tìm kiếm theo ghi chú..." 
-            className="bg-transparent border-none outline-none text-[10px] text-white w-full placeholder:text-white/40 focus:ring-0"
-            value={financeSearchQuery}
-            onChange={(e) => setFinanceSearchQuery(e.target.value)}
-          />
-          {financeSearchQuery && (
-            <button onClick={() => setFinanceSearchQuery('')} className="p-1 hover:bg-white/10 rounded-full transition-colors shrink-0">
-              <X className="w-3 h-3 text-white/50 hover:text-white" />
-            </button>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          {displayFinances.length > 0 ? (
-            displayFinances.map(item => (
-              <div key={item.id} className={`${theme.cardGlass} p-3 rounded-2xl flex items-center justify-between transition-colors hover:bg-white/20`}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`p-2.5 rounded-xl flex-shrink-0 ${item.type === 'thu' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
-                    {item.type === 'thu' ? <TrendingUp className="w-4 h-4" /> : <Wallet className="w-4 h-4" />}
-                  </div>
-                  <div className="min-w-0">
-                    <div className={`font-semibold text-white text-[11px] truncate mb-1`}>{item.note}</div>
-                    <div className={`text-[9px] text-white/60`}>{item.date} • {item.category}</div>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end flex-shrink-0">
-                  <div className={`font-bold text-[11px] whitespace-nowrap ml-2 mb-1 ${item.type === 'thu' ? 'text-green-300' : 'text-red-300'}`}>
-                    {item.type === 'thu' ? '+' : '-'}{formatCurrency(item.amount)}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => openEditFinanceModal(item)} className="text-white/40 hover:text-blue-400 transition-colors"><Pencil className="w-3 h-3" /></button>
-                    <button onClick={() => handleDeleteFinance(item.id)} className="text-white/40 hover:text-red-400 transition-colors"><Trash2 className="w-3 h-3" /></button>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-6 text-white/40 text-[10px] bg-white/5 rounded-2xl border border-dashed border-white/10">
-              Không tìm thấy giao dịch nào.
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-  };
-
   return (
     <div 
       className={`${themeMode === 'light' ? 'bg-gray-100' : 'bg-[#0f172a]'} min-h-[100dvh] font-sans flex items-center justify-center p-0 md:p-6 bg-cover bg-center transition-all duration-500`}
@@ -2031,10 +1226,84 @@ function Dashboard() {
         
         {/* Dynamic App Shell Content Area */}
         <div className="flex-1 absolute inset-0 overflow-y-auto scrollbar-none pb-32" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-            {activeTab === 'home' && renderHome()}
-            {activeTab === 'knowledge' && renderKnowledge()}
-            {activeTab === 'tasks' && renderTasks()}
-            {activeTab === 'finance' && renderFinance()}
+            {activeTab === 'home' && (
+              <HomeTab 
+                themeMode={themeMode}
+                theme={theme}
+                customAvatar={customAvatar}
+                userName={userName}
+                setShowSettingsModal={setShowSettingsModal}
+                setShowNotifications={setShowNotifications}
+                upcomingNotifications={upcomingNotifications}
+                handleThemeToggle={handleThemeToggle}
+                weather={weather}
+                forecast7Days={forecast7Days}
+                currentMonthTaskStats={currentMonthTaskStats}
+                currentMonthExpenseStats={currentMonthExpenseStats}
+                formatCurrency={formatCurrency}
+              />
+            )}
+            {activeTab === 'knowledge' && (
+              <KnowledgeTab 
+                theme={theme}
+                isLoadingAi={isLoadingAi}
+                aiResponse={aiResponse}
+                aiError={aiError}
+                suggestedQuestions={suggestedQuestions}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                handleAiSearch={handleAiSearch}
+                setAiResponse={setAiResponse}
+                setAiError={setAiError}
+              />
+            )}
+            {activeTab === 'tasks' && (
+              <TasksTab 
+                theme={theme}
+                taskViewMode={taskViewMode}
+                setTaskViewMode={setTaskViewMode}
+                setShowTaskModal={setShowTaskModal}
+                pendingTasks={pendingTasks}
+                completedTasks={completedTasks}
+                handleDragStart={handleDragStart}
+                handleDragOver={handleDragOver}
+                handleDrop={handleDrop}
+                handleDragEnd={handleDragEnd}
+                draggedTaskId={draggedTaskId}
+                openEditTaskModal={openEditTaskModal}
+                handleDeleteTask={handleDeleteTask}
+                toggleTaskStatus={toggleTaskStatus}
+                formatCurrency={formatCurrency}
+                currentMonth={currentMonth}
+                prevMonth={prevMonth}
+                nextMonth={nextMonth}
+                calendarDays={calendarDays}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                formatDate={formatDate}
+                selectedDateTasks={selectedDateTasks}
+              />
+            )}
+            {activeTab === 'finance' && (
+              <FinanceTab 
+                theme={theme}
+                financeStats={financeStats}
+                displayMonthStr={displayMonthStr}
+                formatCurrency={formatCurrency}
+                setShowFinanceStatsModal={setShowFinanceStatsModal}
+                openAddFinanceModal={openAddFinanceModal}
+                selectedHistoryMonth={selectedHistoryMonth}
+                setSelectedHistoryMonth={setSelectedHistoryMonth}
+                availableHistoryMonths={availableHistoryMonths}
+                selectedFinanceType={selectedFinanceType}
+                setSelectedFinanceType={setSelectedFinanceType}
+                financeSearchQuery={financeSearchQuery}
+                setFinanceSearchQuery={setFinanceSearchQuery}
+                displayFinances={displayFinances}
+                openEditFinanceModal={openEditFinanceModal}
+                handleDeleteFinance={handleDeleteFinance}
+              />
+            )}
             {activeTab === 'yield' && (
               <YieldTab 
                 theme={theme}
