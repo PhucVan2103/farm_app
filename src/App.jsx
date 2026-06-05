@@ -2323,8 +2323,8 @@ function Login() {
   };
 
   return (
-    <div className="bg-emerald-50 min-h-screen font-sans flex items-center justify-center p-6 bg-[url('https://images.unsplash.com/photo-1524350876685-27405933260c?q=80&w=600&auto=format&fit=crop')] bg-cover bg-center">
-      <div className="w-full max-w-[380px] bg-white/80 backdrop-blur-xl rounded-[32px] p-8 shadow-2xl flex flex-col items-center border border-white/40 animate-fadeIn">
+    <div className="bg-emerald-50 min-h-[100dvh] font-sans flex items-center justify-center p-0 md:p-6 bg-[url('https://images.unsplash.com/photo-1524350876685-27405933260c?q=80&w=600&auto=format&fit=crop')] bg-cover bg-center">
+      <div className="w-full h-[100dvh] md:h-auto md:max-w-[430px] bg-white/80 backdrop-blur-xl md:rounded-[32px] p-8 shadow-2xl flex flex-col items-center justify-center border-0 md:border border-white/40 animate-fadeIn">
         <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center mb-5 shadow-lg border-4 border-white">
           <Leaf className="w-10 h-10 text-white" />
         </div>
