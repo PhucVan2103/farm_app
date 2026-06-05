@@ -52,6 +52,7 @@ import { getToken, onMessage } from 'firebase/messaging';
 import toast, { Toaster } from 'react-hot-toast';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
 import { db } from "./firebase";
+import YieldTab from './YieldTab';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -243,6 +244,7 @@ function Dashboard() {
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingFinanceId, setEditingFinanceId] = useState(null);
+  const [editingYieldId, setEditingYieldId] = useState(null);
 
   // State cho Giao diện & Ảnh nền
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('farmAppTheme') || 'light');
@@ -607,16 +609,53 @@ function Dashboard() {
     }
   };
 
+  const closeYieldModal = () => {
+    setShowYieldModal(false);
+    setEditingYieldId(null);
+    setNewYield({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
+  };
+
+  const openAddYieldModal = () => {
+    setEditingYieldId(null);
+    setNewYield({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
+    setShowYieldModal(true);
+  };
+
+  const openEditYieldModal = (yieldItem) => {
+    setEditingYieldId(yieldItem.id);
+    setNewYield({
+      date: yieldItem.date,
+      weight: yieldItem.weight,
+      type: yieldItem.type,
+      note: yieldItem.note || '',
+      price: yieldItem.price || 0
+    });
+    setShowYieldModal(true);
+  };
+
+  const handleDeleteYield = async (id) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa mẻ thu hoạch này?")) {
+      await deleteDoc(doc(db, "yields", id));
+      toast.success("Đã xóa mẻ thu hoạch!");
+    }
+  };
+
   const handleAddYield = async (e) => {
     e.preventDefault();
     if (!newYield.weight || !newYield.date || !newYield.price) return;
     try {
-      await addDoc(collection(db, "yields"), {
-        ...newYield, weight: parseFloat(newYield.weight), price: parseFloat(newYield.price), createdAt: Date.now()
-      });
-      setShowYieldModal(false);
-      toast.success('Đã lưu mẻ thu hoạch!');
-      setNewYield({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
+      if (editingYieldId) {
+        await updateDoc(doc(db, "yields", editingYieldId), {
+          ...newYield, weight: parseFloat(newYield.weight), price: parseFloat(newYield.price)
+        });
+        toast.success('Đã cập nhật mẻ thu hoạch!');
+      } else {
+        await addDoc(collection(db, "yields"), {
+          ...newYield, weight: parseFloat(newYield.weight), price: parseFloat(newYield.price), createdAt: Date.now()
+        });
+        toast.success('Đã lưu mẻ thu hoạch!');
+      }
+      closeYieldModal();
     } catch (error) {
       console.error("Lỗi khi lưu Mẻ thu hoạch:", error);
       toast.error("Không thể lưu: " + error.message);
