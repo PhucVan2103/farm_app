@@ -47,11 +47,8 @@ import {
 } from 'lucide-react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
-import { messaging } from './firebase';
-import { getToken, onMessage } from 'firebase/messaging';
 import toast, { Toaster } from 'react-hot-toast';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
-import { db } from "./firebase";
+import YieldTab from './YieldTab';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
@@ -204,9 +201,9 @@ function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('home');
   
-  const [tasks, setTasks] = useState([]);
-  const [finances, setFinances] = useState([]);
-  const [yields, setYields] = useState([]);
+  const [tasks, setTasks] = useState(INITIAL_TASKS);
+  const [finances, setFinances] = useState(INITIAL_FINANCES);
+  const [yields, setYields] = useState(INITIAL_YIELDS);
   const [articles, setArticles] = useState(INITIAL_ARTICLES);
 
   // States cho tìm kiếm AI Gemini
@@ -251,7 +248,6 @@ function Dashboard() {
   const [customAvatar, setCustomAvatar] = useState(() => localStorage.getItem('farmAppCustomAvatar') || null);
   const avatarInputRef = useRef(null);
   const [userName, setUserName] = useState(() => localStorage.getItem('farmAppUserName') || 'Chủ vườn Ân');
-  const [fcmToken, setFcmToken] = useState(() => localStorage.getItem('farmAppFcmToken') || '');
 
   // Form states
   const [newTask, setNewTask] = useState({ 
@@ -273,29 +269,6 @@ function Dashboard() {
     : 'https://images.unsplash.com/photo-1596547609652-9fc5d8d428ce?q=80&w=600&auto=format&fit=crop');
 
   useEffect(() => {
-    const qTasks = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
-    const unsubTasks = onSnapshot(qTasks, (snapshot) => {
-      setTasks(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    });
-
-    const qFinances = query(collection(db, "finances"), orderBy("createdAt", "desc"));
-    const unsubFinances = onSnapshot(qFinances, (snapshot) => {
-      setFinances(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    });
-
-    const qYields = query(collection(db, "yields"), orderBy("createdAt", "desc"));
-    const unsubYields = onSnapshot(qYields, (snapshot) => {
-      setYields(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
-    });
-
-    return () => {
-      unsubTasks();
-      unsubFinances();
-      unsubYields();
-    };
-  }, []);
-
-  useEffect(() => {
     localStorage.setItem('farmAppTheme', themeMode);
   }, [themeMode]);
 
@@ -314,19 +287,6 @@ function Dashboard() {
       localStorage.removeItem('farmAppCustomAvatar');
     }
   }, [customAvatar]);
-
-  useEffect(() => {
-    // Tự động dọn dẹp các Service Worker cũ độc lập có thể gây hiển thị 2 thông báo
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (let reg of registrations) {
-          if (reg.active && reg.active.scriptURL && reg.active.scriptURL.endsWith('/firebase-messaging-sw.js')) {
-            reg.unregister();
-          }
-        }
-      });
-    }
-  }, []);
 
   useEffect(() => {
     localStorage.setItem('farmAppUserName', userName);
@@ -353,99 +313,6 @@ function Dashboard() {
       reader.readAsDataURL(file);
     }
   };
-
-  const requestNotificationPermission = async () => {
-    // Kiểm tra đặc thù cho iOS (Apple bắt buộc phải Add to Home Screen mới cho nhận Push)
-    const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-    const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator.standalone);
-
-    if (isIos && !isInStandaloneMode) {
-      alert("📱 CHÚ Ý DÀNH CHO IPHONE/IPAD:\n\nApple yêu cầu bạn phải cài đặt ứng dụng trước khi bật thông báo.\n\nVui lòng nhấn nút [Chia sẻ] ở thanh dưới cùng của Safari -> Chọn [Thêm vào MH chính] (Add to Home Screen).\n\nSau đó hãy mở Nông Trại App từ màn hình chính điện thoại và thử lại nhé!");
-      return;
-    }
-
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        // Lấy Service Worker mặc định của ứng dụng (đã được cấu hình gộp chung với Firebase)
-        const swRegistration = await navigator.serviceWorker.ready;
-
-        const token = await getToken(messaging, { 
-          vapidKey: 'BOigFAMP3C4-1MfaO1lZB-OZiEx9LlyRQDPzj6_2O6VfMFqwA2282SDBQtHiFqXOWVQRGVsHqfpeRAzKt6kYMgY',
-          serviceWorkerRegistration: swRegistration
-        });
-
-        if (token) {
-          console.log('FCM Token của thiết bị:', token);
-          setFcmToken(token);
-          localStorage.setItem('farmAppFcmToken', token);
-          try {
-            await navigator.clipboard.writeText(token);
-            toast.success('Đã bật thông báo! Token đã được copy vào bộ nhớ đệm.', { duration: 4000 });
-          } catch (err) {
-            toast.success('Đã bật thông báo đẩy thành công!');
-          }
-        }
-      } else {
-        toast.error('Bạn đã từ chối quyền gửi thông báo.');
-      }
-    } catch (error) {
-      console.error('Lỗi khi xin quyền thông báo:', error);
-      toast.error('Lỗi xin quyền: ' + error.message);
-    }
-  };
-
-  // Hàm hiển thị Popup Toast thông báo đẹp mắt
-  const showCustomToast = (payload) => {
-    toast.custom(
-      (t) => (
-        <div
-          className={`max-w-sm w-full bg-slate-900 shadow-2xl rounded-2xl pointer-events-auto flex border border-green-500/30 ${
-            t.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
-          } transition-all duration-300 z-[9999]`}
-        >
-          <div className="flex-1 w-0 p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 pt-0.5">
-                <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center text-lg">🔔</div>
-              </div>
-              <div className="ml-3 flex-1">
-                <p className="text-[13px] font-bold text-green-400">{payload.notification?.title || 'Thông báo mới'}</p>
-                <p className="mt-1 text-[11px] text-white/80 leading-relaxed">{payload.notification?.body || ''}</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex border-l border-white/10">
-            <button
-              onClick={() => toast.dismiss(t.id)}
-              className="w-full h-full border border-transparent rounded-none rounded-r-2xl px-4 flex items-center justify-center text-[11px] font-bold text-white/40 hover:text-white hover:bg-white/5 transition-colors"
-            >
-              Đóng
-            </button>
-          </div>
-        </div>
-      ),
-      { duration: 5000, position: 'top-center' }
-    );
-  };
-
-  useEffect(() => {
-    if (!messaging) return;
-    
-    // 1. Lắng nghe chuẩn của Firebase (Hoạt động tốt trên PC/Android)
-    const unsubscribe = onMessage(messaging, (payload) => showCustomToast(payload));
-
-    // 2. Lắng nghe tin nhắn từ Service Worker (Bản vá lỗi không hiện Toast trên iOS)
-    const handleServiceWorkerMessage = (event) => {
-      if (event.data && event.data.type === 'FOREGROUND_PUSH') showCustomToast(event.data.payload);
-    };
-    if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
-
-    return () => {
-      unsubscribe();
-      if ('serviceWorker' in navigator) navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
-    };
-  }, []);
 
   const handleLogout = () => {
     const confirmLogout = window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?");
@@ -506,7 +373,7 @@ function Dashboard() {
     if (newTask.hasLabor && newTask.laborCount && newTask.laborPrice) {
       laborTotalCost = parseFloat(newTask.laborCount) * parseFloat(newTask.laborPrice);
     }
-      
+
     if (editingTaskId) {
       await updateDoc(doc(db, "tasks", editingTaskId), {
         title: newTask.title,
@@ -577,59 +444,37 @@ function Dashboard() {
     setShowFinanceModal(true);
   };
 
-  const handleDeleteFinance = async (id) => {
+  const handleDeleteFinance = (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa giao dịch này?")) {
-      await deleteDoc(doc(db, "finances", id));
+      setFinances(finances.filter(f => f.id !== id));
       toast.success("Đã xóa giao dịch!");
     }
   };
 
-  const handleAddFinance = async (e) => {
+  const handleAddFinance = (e) => {
     e.preventDefault();
     if (!newFinance.amount || !newFinance.date) return;
     
-    try {
-      if (editingFinanceId) {
-        await updateDoc(doc(db, "finances", editingFinanceId), {
-          ...newFinance, amount: parseFloat(newFinance.amount)
-        });
-        toast.success('Đã cập nhật giao dịch!');
-      } else {
-        await addDoc(collection(db, "finances"), {
-          ...newFinance, amount: parseFloat(newFinance.amount), createdAt: Date.now()
-        });
-        toast.success('Đã lưu giao dịch!');
-      }
-      closeFinanceModal();
-    } catch (error) {
-      console.error("Lỗi khi lưu Giao dịch:", error);
-      toast.error("Không thể lưu: " + error.message);
+    if (editingFinanceId) {
+      setFinances(finances.map(f => f.id === editingFinanceId ? { ...f, ...newFinance, amount: parseFloat(newFinance.amount) } : f));
+      toast.success('Đã cập nhật giao dịch!');
+    } else {
+      setFinances([{ ...newFinance, id: Date.now(), amount: parseFloat(newFinance.amount) }, ...finances]);
+      toast.success('Đã lưu giao dịch!');
     }
+    closeFinanceModal();
   };
 
-  const handleAddYield = async (e) => {
+  const handleAddYield = (e) => {
     e.preventDefault();
     if (!newYield.weight || !newYield.date || !newYield.price) return;
-    try {
-      await addDoc(collection(db, "yields"), {
-        ...newYield, weight: parseFloat(newYield.weight), price: parseFloat(newYield.price), createdAt: Date.now()
-      });
-      setShowYieldModal(false);
-      toast.success('Đã lưu mẻ thu hoạch!');
-      setNewYield({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
-    } catch (error) {
-      console.error("Lỗi khi lưu Mẻ thu hoạch:", error);
-      toast.error("Không thể lưu: " + error.message);
-    }
+    setYields([{ ...newYield, id: Date.now(), weight: parseFloat(newYield.weight), price: parseFloat(newYield.price) }, ...yields]);
+    setShowYieldModal(false);
+    setNewYield({ date: '', weight: '', type: 'Cà phê tươi', note: '', price: 22000 });
   };
 
-  const toggleTaskStatus = async (taskId) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
-      const newStatus = task.status === 'pending' ? 'completed' : 'pending';
-      await updateDoc(doc(db, "tasks", taskId), { status: newStatus });
-      if (newStatus === 'completed') toast.success('Đã hoàn thành công việc!');
-    }
+  const toggleTaskStatus = (taskId) => {
+    setTasks(tasks.map(t => t.id === taskId ? { ...t, status: t.status === 'pending' ? 'completed' : 'pending' } : t));
   };
 
   // Các hàm xử lý Kéo Thả (Drag & Drop)
@@ -1063,7 +908,7 @@ function Dashboard() {
               <input type="file" ref={fileInputRef} onChange={handleBgChange} accept="image/*" className="hidden" />
               <div className="flex gap-2">
                 <button onClick={() => fileInputRef.current.click()} className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 rounded-xl transition-colors text-[10px]">Tải lên</button>
-                {customBg && <button onClick={() => { setCustomBg(null); toast.success('Đã xóa ảnh nền'); }} className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold py-2.5 rounded-xl transition-colors text-[10px]">Xóa nền</button>}
+                {customBg && <button onClick={() => setCustomBg(null)} className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold py-2.5 rounded-xl transition-colors text-[10px]">Xóa nền</button>}
               </div>
             </div>
             
@@ -1073,7 +918,7 @@ function Dashboard() {
               <input type="file" ref={avatarInputRef} onChange={handleAvatarChange} accept="image/*" className="hidden" />
               <div className="flex gap-2">
                 <button onClick={() => avatarInputRef.current.click()} className="flex-1 bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 rounded-xl transition-colors text-[10px]">Tải lên</button>
-                {customAvatar && <button onClick={() => { setCustomAvatar(null); toast.success('Đã xóa ảnh đại diện'); }} className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold py-2.5 rounded-xl transition-colors text-[10px]">Xóa ảnh</button>}
+                {customAvatar && <button onClick={() => setCustomAvatar(null)} className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold py-2.5 rounded-xl transition-colors text-[10px]">Xóa ảnh</button>}
               </div>
             </div>
             
@@ -1087,29 +932,6 @@ function Dashboard() {
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
               />
-            </div>
-
-            {/* Nút Bật thông báo đẩy */}
-            <div className="pt-4 mt-2 border-t border-white/10">
-              {fcmToken ? (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-green-500 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Đã bật thông báo đẩy</span>
-                    <button onClick={requestNotificationPermission} className="text-[9px] text-blue-400 hover:text-blue-300 underline">Cấp lại Token</button>
-                  </div>
-                  <div className="flex gap-2">
-                    <input type="text" readOnly value={fcmToken} className={`flex-1 rounded-lg p-2 ${theme.inputGlass} outline-none text-[8px] text-white/50 truncate`} />
-                    <button onClick={() => { navigator.clipboard.writeText(fcmToken); toast.success('Đã copy Token!'); }} className="bg-white/10 hover:bg-white/20 text-white rounded-lg px-3 text-[10px] font-bold transition-colors">Copy</button>
-                  </div>
-                </div>
-              ) : (
-                <button 
-                  onClick={requestNotificationPermission}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-400 font-bold py-3 rounded-xl transition-colors text-[11px]"
-                >
-                  <Bell className="w-4 h-4" /> Bật thông báo đẩy (Push)
-                </button>
-              )}
             </div>
             
             {/* Nút Đăng xuất */}
@@ -1783,7 +1605,7 @@ function Dashboard() {
             <BarChart3 className="w-4 h-4" />
           </button>
           <button 
-            onClick={() => setShowFinanceModal(true)}
+            onClick={openAddFinanceModal}
             className="bg-white text-green-900 rounded-full shadow-lg hover:bg-green-50 transition-colors flex items-center gap-1.5 px-3 py-2"
           >
             <Plus className="w-3.5 h-3.5" /> <span className="text-[10px] font-bold">Giao dịch</span>
@@ -1997,23 +1819,38 @@ function Dashboard() {
 
   return (
     <div 
-      className={`${themeMode === 'light' ? 'bg-gray-100' : 'bg-[#0f172a]'} min-h-[100dvh] font-sans flex items-center justify-center p-0 md:p-6 bg-cover bg-center transition-all duration-500`}
+      className={`${themeMode === 'light' ? 'bg-gray-100' : 'bg-[#0f172a]'} min-h-screen font-sans flex items-center justify-center p-0 md:p-6 bg-cover bg-center transition-all duration-500`}
       style={backgroundUrl ? { backgroundImage: `url(${backgroundUrl})` } : {}}
     >
       {/* Mobile Frame Wrapper */}
-      <div className={`w-full h-[100dvh] md:max-w-[430px] md:h-[800px] md:rounded-[40px] md:border-[8px] md:border-black/50 ${theme.appWrapper} backdrop-blur-3xl relative shadow-2xl flex flex-col overflow-hidden`}>
+      <div className={`w-full max-w-[380px] h-screen md:h-[800px] md:rounded-[40px] md:border-[8px] md:border-black/50 ${theme.appWrapper} backdrop-blur-3xl relative shadow-2xl flex flex-col overflow-hidden`}>
         
         {/* Dynamic App Shell Content Area */}
-        <div className="flex-1 absolute inset-0 overflow-y-auto scrollbar-none pb-32" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex-1 absolute inset-0 overflow-y-auto scrollbar-none pb-28">
             {activeTab === 'home' && renderHome()}
             {activeTab === 'knowledge' && renderKnowledge()}
             {activeTab === 'tasks' && renderTasks()}
             {activeTab === 'finance' && renderFinance()}
-            {activeTab === 'yield' && renderYield()}
+            {activeTab === 'yield' && (
+              <YieldTab 
+                theme={theme}
+                selectedYieldYear={selectedYieldYear}
+                setSelectedYieldYear={setSelectedYieldYear}
+                availableYieldYears={availableYieldYears}
+                setShowYieldStatsModal={setShowYieldStatsModal}
+                openAddYieldModal={openAddYieldModal}
+                openEditYieldModal={openEditYieldModal}
+                handleDeleteYield={handleDeleteYield}
+                totalYield={totalYield}
+                estimatedRevenue={estimatedRevenue}
+                formatCurrency={formatCurrency}
+                filteredYields={filteredYields}
+              />
+            )}
         </div>
 
         {/* Floating Bottom Navigation Bar (Glassmorphism Pill) */}
-        <div className="absolute left-4 right-4 z-20" style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}>
+        <div className="absolute bottom-6 left-4 right-4 z-20">
           <div className={`${theme.bottomNavGlass} flex justify-around items-center p-2`}>
             <button 
               onClick={() => setActiveTab('home')}
@@ -2478,6 +2315,7 @@ function Login() {
     // Logic kiểm tra tài khoản/mật khẩu giả lập
     if (username === 'admin' && password === '123456') {
       localStorage.setItem('isAuthenticated', 'true');
+      toast.success('Đăng nhập thành công!');
       navigate('/');
     } else {
       setError('Tên đăng nhập hoặc mật khẩu không đúng! (Gợi ý: admin / 123456)');
@@ -2485,8 +2323,8 @@ function Login() {
   };
 
   return (
-    <div className="bg-emerald-50 min-h-[100dvh] font-sans flex items-center justify-center p-0 md:p-6 bg-[url('https://images.unsplash.com/photo-1524350876685-27405933260c?q=80&w=600&auto=format&fit=crop')] bg-cover bg-center">
-      <div className="w-full h-[100dvh] md:h-auto md:max-w-[430px] bg-white/80 backdrop-blur-xl md:rounded-[32px] p-8 shadow-2xl flex flex-col items-center justify-center border-0 md:border border-white/40 animate-fadeIn">
+    <div className="bg-emerald-50 min-h-screen font-sans flex items-center justify-center p-6 bg-[url('https://images.unsplash.com/photo-1524350876685-27405933260c?q=80&w=600&auto=format&fit=crop')] bg-cover bg-center">
+      <div className="w-full max-w-[380px] bg-white/80 backdrop-blur-xl rounded-[32px] p-8 shadow-2xl flex flex-col items-center border border-white/40 animate-fadeIn">
         <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center mb-5 shadow-lg border-4 border-white">
           <Leaf className="w-10 h-10 text-white" />
         </div>
