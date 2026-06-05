@@ -2480,6 +2480,19 @@ const ProtectedRoute = ({ children }) => {
 export default function CoffeeFarmApp() {
   return (
     <BrowserRouter>
+      <Toaster 
+        position="top-center" 
+        toastOptions={{
+          style: {
+            background: '#1e293b',
+            color: '#fff',
+            fontSize: '11px',
+            borderRadius: '100px',
+            padding: '8px 16px',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }
+        }} 
+      />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
