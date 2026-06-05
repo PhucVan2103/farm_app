@@ -1984,11 +1984,15 @@ function Login() {
     
     try {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        // Điện thoại: Chuyển hướng trang để tránh lỗi chặn Popup
+      const isIosStandalone = ('standalone' in window.navigator) && window.navigator.standalone;
+      const isOtherStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isPwa = isIosStandalone || isOtherStandalone;
+
+      if (isMobile && !isPwa) {
+        // Điện thoại mở bằng trình duyệt: Chuyển hướng trang
         await signInWithRedirect(auth, provider);
       } else {
-        // PC: Dùng Popup cho mượt
+        // PC hoặc App PWA trên màn hình: Dùng Popup để không bị văng khỏi App
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         
