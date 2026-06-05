@@ -199,9 +199,9 @@ function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('home');
   
-  const [tasks, setTasks] = useState(INITIAL_TASKS);
-  const [finances, setFinances] = useState(INITIAL_FINANCES);
-  const [yields, setYields] = useState(INITIAL_YIELDS);
+  const [tasks, setTasks] = useState([]);
+  const [finances, setFinances] = useState([]);
+  const [yields, setYields] = useState([]);
   const [articles, setArticles] = useState(INITIAL_ARTICLES);
 
   // States cho tìm kiếm AI Gemini
@@ -236,6 +236,8 @@ function Dashboard() {
 
   // State cho Drag & Drop
   const [draggedTaskId, setDraggedTaskId] = useState(null);
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingFinanceId, setEditingFinanceId] = useState(null);
 
   // State cho Giao diện & Ảnh nền
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('farmAppTheme') || 'light');
@@ -264,6 +266,29 @@ function Dashboard() {
   const backgroundUrl = customBg || (themeMode === 'light' 
     ? '' 
     : 'https://images.unsplash.com/photo-1596547609652-9fc5d8d428ce?q=80&w=600&auto=format&fit=crop');
+
+  useEffect(() => {
+    const qTasks = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
+    const unsubTasks = onSnapshot(qTasks, (snapshot) => {
+      setTasks(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+
+    const qFinances = query(collection(db, "finances"), orderBy("createdAt", "desc"));
+    const unsubFinances = onSnapshot(qFinances, (snapshot) => {
+      setFinances(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+
+    const qYields = query(collection(db, "yields"), orderBy("createdAt", "desc"));
+    const unsubYields = onSnapshot(qYields, (snapshot) => {
+      setYields(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+    });
+
+    return () => {
+      unsubTasks();
+      unsubFinances();
+      unsubYields();
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('farmAppTheme', themeMode);
