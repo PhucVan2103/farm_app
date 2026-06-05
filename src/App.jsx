@@ -41,12 +41,17 @@ import {
   Scale,
   Package,
   LogOut,
-  Send
+  Send,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import { messaging } from './firebase';
 import { getToken, onMessage } from 'firebase/messaging';
+import toast, { Toaster } from 'react-hot-toast';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "firebase/firestore";
+import { db } from "./firebase";
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
